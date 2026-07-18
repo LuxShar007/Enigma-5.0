@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 const CRAWL_TEXT = [
   { text: "A long time ago in a lab far, far away....", type: "intro" },
@@ -26,8 +26,11 @@ export default function StarWarsCrawl({ onComplete }) {
   const [phase, setPhase] = useState('intro');   // intro | logo | crawl | exit
   const hasCompleted = useRef(false);
   const phaseRef = useRef('intro');
+  // Keep onComplete in a ref so useCallback doesn't re-run when parent re-renders
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
-  const finish = () => {
+  const finish = useCallback(() => {
     if (hasCompleted.current) return;
     hasCompleted.current = true;
     setPhase('exit');
@@ -35,8 +38,8 @@ export default function StarWarsCrawl({ onComplete }) {
     // Unlock scroll, snap to top, then unmount the crawl
     document.body.style.overflow = '';
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    setTimeout(() => onComplete?.(), 900);
-  };
+    setTimeout(() => onCompleteRef.current?.(), 900);
+  }, []);
 
   // Lock body scroll while crawl is active so nothing beneath can shift
   useEffect(() => {
@@ -56,14 +59,14 @@ export default function StarWarsCrawl({ onComplete }) {
     const t2 = setTimeout(() => { setPhase('crawl'); phaseRef.current = 'crawl'; }, 5200);
     const t3 = setTimeout(finish, 14000);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
+  }, [finish]);
 
   // Keydown / click to skip
   useEffect(() => {
     const onSkip = () => finish();
     window.addEventListener('keydown', onSkip);
     return () => window.removeEventListener('keydown', onSkip);
-  }, []);
+  }, [finish]);
 
   return (
     <div

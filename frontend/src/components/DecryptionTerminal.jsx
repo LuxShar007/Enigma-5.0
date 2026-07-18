@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+// Module-level constant — never changes, safe to reference from any useEffect
+const CODE_LOGS = [
+  "Analyzing security handshakes...",
+  "Validating SIES CSI digital signature...",
+  "Deploying sandbox environment v1.2...",
+  "Allocating ₹25,000 cash pool credits...",
+  "Activating HealthTech data channels...",
+  "Configuring FinTech ledger interfaces...",
+  "Mounting team repository pipelines...",
+  "Loading mentorship registry indexes...",
+  "Running checksum on Enigma cipher...",
+  "Security validation successful.",
+  "Awaiting target key inputs..."
+];
+
 export default function DecryptionTerminal() {
   const [percentage, setPercentage] = useState(0);
   const [logs, setLogs] = useState([]);
@@ -10,20 +25,6 @@ export default function DecryptionTerminal() {
   const matrixFeedRef = useRef(null);
   const canvasRef = useRef(null);
   const inputRef = useRef(null);
-
-  const codeLogs = [
-    "Analyzing security handshakes...",
-    "Validating SIES CSI digital signature...",
-    "Deploying sandbox environment v1.2...",
-    "Allocating ₹25,000 cash pool credits...",
-    "Activating HealthTech data channels...",
-    "Configuring FinTech ledger interfaces...",
-    "Mounting team repository pipelines...",
-    "Loading mentorship registry indexes...",
-    "Running checksum on Enigma cipher...",
-    "Security validation successful.",
-    "Awaiting target key inputs..."
-  ];
 
   // Bootup decrypter simulation on load
   useEffect(() => {
@@ -37,8 +38,8 @@ export default function DecryptionTerminal() {
       currentPercent += 1;
       setPercentage(currentPercent);
 
-      if (currentPercent % 9 === 0 && logIndex < codeLogs.length) {
-        const nextLog = codeLogs[logIndex];
+      if (currentPercent % 9 === 0 && logIndex < CODE_LOGS.length) {
+        const nextLog = CODE_LOGS[logIndex];
         if (nextLog) {
           setLogs((prevLogs) => [...prevLogs, nextLog]);
         }

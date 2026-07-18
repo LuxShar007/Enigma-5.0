@@ -3212,14 +3212,16 @@ h4,
 
 .hero-section,
 .about-section,
+/* Sections: NO contain/translateZ — breaks GSAP ScrollTrigger position measurements.
+   GPU promotion is handled per-element below. */
+.hero-section,
+.about-section,
 .tracks-section,
 .prizes-section,
 .timeline-section,
 .faq-section,
-.contact-section,
-.cipher-strip-section {
-  contain: layout style;
-  transform: translateZ(0);
+.contact-section {
+  position: relative; /* Ensure stacking context without breaking layout containment */
 }
 
 .ambient-orb,
@@ -3437,17 +3439,8 @@ html {
    ============================================= */
 
 /* Force GPU compositing on all animated layers */
-.hero-section,
-.about-section,
-.tracks-section,
-.prizes-section,
-.timeline-section,
-.faq-section,
-.contact-section,
-.cipher-strip-section {
-  contain: layout style;
-  transform: translateZ(0);
-}
+/* 240Hz: promote specific animated elements to GPU compositor layers */
+/* (sections excluded — contain/translateZ breaks GSAP ScrollTrigger) */
 
 /* Promote key animated elements to their own compositing layers */
 .ambient-orb,

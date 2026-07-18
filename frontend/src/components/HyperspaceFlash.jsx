@@ -1,4 +1,4 @@
-import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 
 /* 
   HyperspaceFlash — a full-screen canvas hyperspace warp that plays for ~600ms.

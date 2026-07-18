@@ -57,7 +57,7 @@ export default function CipherStrip() {
   useEffect(() => {
     const section = sectionRef.current;
     const track   = trackRef.current;
-    if (!section || !track) return;
+    if (!section || !track) return undefined;
 
     // Let the DOM settle before measuring
     const init = () => {
@@ -83,7 +83,7 @@ export default function CipherStrip() {
 
         // Per-panel content: fade + scale in as each panel slides into view
         const panelEls = track.querySelectorAll('.cipher-panel-inner');
-        panelEls.forEach((el, i) => {
+        panelEls.forEach((el) => {
           gsap.fromTo(
             el,
             { opacity: 0, scale: 0.82, y: 40 },

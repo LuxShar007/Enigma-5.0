@@ -167,81 +167,143 @@ export default function App() {
         });
       });
 
-      // Timeline vertical line fill animation (retains scrub for movement feel)
-      gsap.to("#timeline-progress-bar", {
+      // ── Timeline Section ──────────────────────────────────────────────
+      // Progress bar fill (scrub so it feels physical)
+      gsap.fromTo("#timeline-progress-bar",
+        { height: "0%" },
+        {
+          height: "100%",
+          ease: "none",
+          scrollTrigger: {
+            trigger: ".timeline-container",
+            start: "top 70%",
+            end: "bottom 65%",
+            scrub: 0.8,
+          },
+        }
+      );
+
+      // Countdown widget drops in from above
+      gsap.from(".registry-countdown", {
         scrollTrigger: {
-          trigger: ".timeline-container",
-          start: "top 30%",
-          end: "bottom 70%",
-          scrub: true
+          trigger: ".timeline-section",
+          start: "top 88%",
+          end: "top 50%",
+          scrub: 1,
         },
-        height: "100%",
-        ease: "none"
+        y: -60,
+        opacity: 0,
+        scale: 0.92,
       });
 
-      // Timeline cards triggers (smooth Apple-style slide in from left/right sides)
+      // Timeline items: each card slides from its side with staggered start
       const timelineItems = document.querySelectorAll(".timeline-item");
-      timelineItems.forEach(item => {
+      timelineItems.forEach((item, _idx) => {
         const card = item.querySelector(".timeline-card");
+        const dot  = item.querySelector(".timeline-dot-outer");
         const isLeft = item.classList.contains("left");
-        
+
+        // Card slides in from left or right
         gsap.from(card, {
           scrollTrigger: {
             trigger: item,
-            start: "top 95%",
-            end: "top 60%",
-            scrub: 1.2
+            start: "top 90%",
+            end: "top 55%",
+            scrub: 1,
           },
-          x: isLeft ? -100 : 100,
+          x: isLeft ? -120 : 120,
           opacity: 0,
-          scale: 0.9
+          scale: 0.88,
         });
 
-        // Active state line trigger remains unchanged
+        // Dot pulses in independently
+        if (dot) {
+          gsap.from(dot, {
+            scrollTrigger: {
+              trigger: item,
+              start: "top 88%",
+              end: "top 65%",
+              scrub: 1,
+            },
+            scale: 0,
+            opacity: 0,
+          });
+        }
+
+        // Add active class when item centre crosses 75% viewport
         ScrollTrigger.create({
           trigger: item,
-          start: "top 80%",
-          onEnter: () => item.classList.add("active"),
-          onLeaveBack: () => item.classList.remove("active")
+          start: "top 75%",
+          onEnter:     () => item.classList.add("active"),
+          onLeaveBack: () => item.classList.remove("active"),
         });
       });
 
-      // FAQ Terminal Reveal
+      // ── FAQ ───────────────────────────────────────────────────────────
       gsap.from(".faq-terminal", {
         scrollTrigger: {
           trigger: ".faq-section",
-          start: "top 95%",
-          end: "top 60%",
-          scrub: 1.2
+          start: "top 88%",
+          end: "top 55%",
+          scrub: 1,
         },
-        y: 80,
+        y: 90,
         opacity: 0,
-        scale: 0.94
+        scale: 0.93,
       });
 
-      // Contact column triggers (smooth scrub slide-in)
+      // ── Contact Section ───────────────────────────────────────────────
+      // Left column slides in
       gsap.from(".contact-details", {
         scrollTrigger: {
           trigger: ".contact-section",
-          start: "top 95%",
-          end: "top 60%",
-          scrub: 1.2
+          start: "top 88%",
+          end: "top 52%",
+          scrub: 1,
         },
-        x: -100,
+        x: -120,
         opacity: 0,
-        scale: 0.93
+        scale: 0.92,
       });
 
+      // Right form slides in from opposite side
       gsap.from(".contact-form-container", {
         scrollTrigger: {
           trigger: ".contact-section",
-          start: "top 95%",
-          end: "top 60%",
-          scrub: 1.2
+          start: "top 88%",
+          end: "top 52%",
+          scrub: 1,
         },
-        x: 100,
+        x: 120,
         opacity: 0,
-        scale: 0.93
+        scale: 0.92,
+      });
+
+      // Social links stagger up one by one
+      gsap.from(".social-links a", {
+        scrollTrigger: {
+          trigger: ".social-links",
+          start: "top 92%",
+          end: "top 70%",
+          scrub: 0.8,
+        },
+        y: 30,
+        opacity: 0,
+        scale: 0.7,
+        stagger: 0.12,
+      });
+
+      // Contact info items cascade in
+      gsap.from(".contact-item", {
+        scrollTrigger: {
+          trigger: ".contact-info-list",
+          start: "top 90%",
+          end: "top 60%",
+          scrub: 0.8,
+        },
+        y: 25,
+        opacity: 0,
+        stagger: 0.15,
       });
       // Scramble text function
       const scrambleText = (element, originalText, duration = 1000) => {
