@@ -12,7 +12,7 @@ export default function Countdown() {
   const [registeredCount, setRegisteredCount] = useState(() => {
     // Start with a high realistic number near capacity
     const saved = localStorage.getItem('enigma_sim_registered');
-    return saved ? parseInt(saved, 10) : 1905;
+    return saved ? parseInt(saved, 10) : 2847;
   });
   
   const [liveAlert, setLiveAlert] = useState(null); // { message: string, id: number }
@@ -56,7 +56,7 @@ export default function Countdown() {
       const delay = Math.random() * (75000 - 40000) + 40000; // 40s to 75s
       return setTimeout(() => {
         setRegisteredCount(prev => {
-          if (prev >= 1997) return prev; // cap simulator below 2000 to keep slots open
+          if (prev >= 2997) return prev; // cap simulator below 3000 to keep slots open
           
           const increment = Math.random() < 0.35 ? 2 : 1;
           const nextCount = prev + increment;
@@ -143,14 +143,14 @@ export default function Countdown() {
           )}
 
           <span className="capacity-count text-glow-emerald">
-            {registeredCount.toLocaleString()} / 2,000 REGISTERED
+            {registeredCount.toLocaleString()} / 3,000 REGISTERED
           </span>
         </div>
         
         <div className="capacity-progress-container">
           <div 
             className="capacity-progress-fill" 
-            style={{ width: `${(registeredCount / 2000) * 100}%` }}
+            style={{ width: `${(registeredCount / 3000) * 100}%` }}
           />
         </div>
       </div>
