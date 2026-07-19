@@ -1,6 +1,14 @@
 import React from 'react';
 
 export default function Organizers() {
+  const splitText = (text) => {
+    return text.split(' ').map((word, idx) => (
+      <span key={idx} className="apple-word">
+        {word}{' '}
+      </span>
+    ));
+  };
+
   return (
     <section id="organizers" className="organizers-section">
       <div className="container">
@@ -29,8 +37,8 @@ export default function Organizers() {
                   <div className="dossier-section-title">
                     <i className="fa-solid fa-graduation-cap text-cyan"></i> CORE CHAPTER OBJECTIVE
                   </div>
-                  <p className="dossier-p">
-                    The SIES GST Computer Society of India (CSI) Campus Chapter is a premier student community dedicated to bridging the gap between academic theory and active engineering practice.
+                  <p className="dossier-p apple-scroll-text">
+                    {splitText("The SIES GST Computer Society of India (CSI) Campus Chapter is a premier student community dedicated to bridging the gap between academic theory and active engineering practice.")}
                   </p>
                 </div>
 
@@ -38,8 +46,8 @@ export default function Organizers() {
                   <div className="dossier-section-title">
                     <i className="fa-solid fa-server text-purple"></i> OPERATION SPECIFICATION
                   </div>
-                  <p className="dossier-p">
-                    Established under CSI's countrywide network (founded in 1965 as India's largest IT association), our chapter hosts coding contests, workshops, seminars, and national technical project exhibitions to nurture the tech leaders of tomorrow.
+                  <p className="dossier-p apple-scroll-text">
+                    {splitText("Established under CSI's countrywide network (founded in 1965 as India's largest IT association), our chapter hosts coding contests, workshops, seminars, and national technical project exhibitions to nurture the tech leaders of tomorrow.")}
                   </p>
                 </div>
 

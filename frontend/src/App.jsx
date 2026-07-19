@@ -78,16 +78,19 @@ export default function App() {
         .from('.hero-title',             { y: 50, opacity: 0, filter: 'blur(8px)', duration: 0.9,  ease: 'expo.out' }, '-=0.5')
         .from('.hero-description',       { y: 25, opacity: 0, filter: 'blur(4px)', duration: 0.75, ease: 'expo.out' }, '-=0.55')
         .from('.hero-pills .pill',       { y: 20, opacity: 0, stagger: 0.1,  duration: 0.55, ease: 'expo.out' }, '-=0.45')
+        .from('.countdown-wrapper',      { y: 20, opacity: 0, duration: 0.55, ease: 'expo.out' }, '-=0.45')
         .from('.hero-actions .btn',      { y: 20, opacity: 0, stagger: 0.12, duration: 0.55, ease: 'expo.out' }, '-=0.4')
         .from('.scroll-indicator',       { opacity: 0, y: 10, duration: 0.5, ease: 'power2.out' });
 
       /* Word-by-word text illumination — intentional scrub */
       document.querySelectorAll('.apple-scroll-text').forEach(block => {
         const words = block.querySelectorAll('.apple-word');
-        gsap.to(words, {
-          scrollTrigger: { trigger: block, start: 'top 80%', end: 'bottom 50%', scrub: true },
-          color: '#ffffff', stagger: 0.06, ease: 'none',
-        });
+        if (words.length > 0) {
+          gsap.to(words, {
+            scrollTrigger: { trigger: block, start: 'top 80%', end: 'bottom 50%', scrub: true },
+            color: '#ffffff', stagger: 0.06, ease: 'none',
+          });
+        }
       });
 
       /* Section headers — handled by CSS reveal-blur + IntersectionObserver, no GSAP needed */
@@ -133,11 +136,7 @@ export default function App() {
         }
       );
 
-      /* Timeline countdown widget */
-      gsap.from('.registry-countdown', {
-        scrollTrigger: { trigger: '.timeline-section', start: 'top 88%', toggleActions: 'play none none none' },
-        y: -40, opacity: 0, filter: 'blur(5px)', scale: 0.96, duration: 0.85, ease: 'expo.out',
-      });
+
 
       /* Timeline items — CSS reveal-left/reveal-right handles slide animation.
          GSAP only manages the dot pop-in and the active class for highlighting. */

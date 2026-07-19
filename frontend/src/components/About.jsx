@@ -2,6 +2,14 @@ import React from 'react';
 import DecryptionTerminal from './DecryptionTerminal';
 
 export default function About() {
+  const splitText = (text) => {
+    return text.split(' ').map((word, idx) => (
+      <span key={idx} className="apple-word">
+        {word}{' '}
+      </span>
+    ));
+  };
+
   return (
     <section id="about" className="about-section">
       <div className="container">
@@ -30,8 +38,8 @@ export default function About() {
                   <div className="dossier-section-title">
                     <i className="fa-solid fa-microchip text-cyan"></i> MISSION DIRECTIVE
                   </div>
-                  <p className="dossier-p">
-                    Enigma is back, bolder and more challenging than ever. SIES CSI's flagship hackathon returns for its fifth iteration, pushing undergraduate minds to create impactful solutions under high-pressure conditions.
+                  <p className="dossier-p apple-scroll-text">
+                    {splitText("Enigma is back, bolder and more challenging than ever. SIES CSI's flagship hackathon returns for its fifth iteration, pushing undergraduate minds to create impactful solutions under high-pressure conditions.")}
                   </p>
                 </div>
 
@@ -39,8 +47,8 @@ export default function About() {
                   <div className="dossier-section-title">
                     <i className="fa-solid fa-network-wired text-purple"></i> OPERATION SCHEMATIC
                   </div>
-                  <p className="dossier-p">
-                    For 36 consecutive hours, teams of 4 will collaborate, design, develop, and present technical prototypes. Enigma offers a launchpad to bring your FinTech and HealthTech concepts to life with the guidance of industry-expert mentors.
+                  <p className="dossier-p apple-scroll-text">
+                    {splitText("For 36 consecutive hours, teams of 4 will collaborate, design, develop, and present technical prototypes. Enigma offers a launchpad to bring your FinTech and HealthTech concepts to life with the guidance of industry-expert mentors.")}
                   </p>
                 </div>
 
