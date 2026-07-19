@@ -4,6 +4,41 @@ export default function Navbar({ onRegisterClick }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS && !isStandalone) {
+      setShowInstallBtn(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async (e) => {
+    e.preventDefault();
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`PWA install prompt outcome: ${outcome}`);
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    } else {
+      alert("To install Enigma 5.0 as an application:\n\n• On iOS (Safari): Tap the Share button (square with an up arrow) and select 'Add to Home Screen'.\n• On Android (Firefox/Opera): Tap the three-dot menu and select 'Install' or 'Add to Home screen'.\n• On Desktop (Firefox/Edge): Click the install icon in the URL bar.");
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -117,6 +152,17 @@ export default function Navbar({ onRegisterClick }) {
           </nav>
 
           <div className="nav-actions">
+            {showInstallBtn && (
+              <button
+                onClick={handleInstallClick}
+                className="btn btn-secondary install-btn"
+                title="Download Enigma App"
+                style={{ padding: '8px 12px', minWidth: 'unset', marginRight: '6px' }}
+              >
+                <i className="fa-solid fa-download" style={{ marginRight: '4px' }}></i>
+                <span className="nav-btn-hide">Download App</span>
+              </button>
+            )}
             <a
               href="#contact"
               className="btn btn-secondary nav-btn-hide"

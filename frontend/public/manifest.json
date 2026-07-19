@@ -1,0 +1,25 @@
+{
+  "name": "Enigma 5.0 | SIES CSI Hackathon",
+  "short_name": "Enigma 5.0",
+  "description": "Enigma 5.0 — SIES GST CSI flagship 36-hour hackathon landing page and registration matrix.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#02040a",
+  "theme_color": "#02040a",
+  "categories": ["education", "developer", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

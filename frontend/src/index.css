@@ -4855,4 +4855,150 @@ html {
   100% { border-color: rgba(0, 242, 254, 0.45); }
 }
 
+/* ==========================================================================
+   MOBILE DEVICES LAYOUT RATIO & PWA INSTALL STYLES (iOS & Android)
+   ========================================================================== */
+.install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(157, 78, 221, 0.12) !important;
+  border: 1px solid rgba(157, 78, 221, 0.35) !important;
+  color: var(--color-purple-light) !important;
+  transition: all 0.25s ease !important;
+}
+.install-btn:hover {
+  background: rgba(0, 242, 254, 0.15) !important;
+  border-color: rgba(0, 242, 254, 0.5) !important;
+  color: var(--color-cyan) !important;
+}
+
+@media (max-width: 768px) {
+  /* Prevent horizontal container overflows */
+  body, html {
+    overflow-x: hidden;
+  }
+  
+  .container {
+    padding: 0 16px;
+  }
+
+  /* Compress excessive Hero margins for small viewports */
+  .hero-section {
+    padding-top: 110px;
+    padding-bottom: 50px;
+    min-height: auto;
+  }
+  
+  .hero-title {
+    font-size: clamp(2.0rem, 8vw, 3.4rem) !important;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .countdown-wrapper {
+    margin: 20px 0;
+    padding: 16px;
+  }
+
+  /* Optimize CLI Terminal layout for mobile touch ratios */
+  .terminal-box {
+    max-height: 280px;
+  }
+  
+  .terminal-line, .terminal-input-container {
+    font-size: 0.72rem !important;
+  }
+
+  /* Organizers DOSSIER cards alignment */
+  .organizers-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px;
+  }
+
+  /* Tracks acrylic cards layout flow */
+  .tracks-grid {
+    gap: 20px;
+  }
+  
+  .track-card {
+    padding: 24px 18px !important;
+  }
+
+  /* Secure Modal mobile alignment (leaves space for keyboard popup) */
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 30px;
+  }
+  
+  .modal-panel {
+    max-height: 92vh;
+    padding: 16px !important;
+    border-radius: 12px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.15rem;
+  }
+  
+  .modal-body form {
+    gap: 12px;
+  }
+
+  .form-group label {
+    font-size: 0.68rem;
+  }
+
+  .form-group input, .form-group select {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-pills {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .hero-pills .pill {
+    font-size: 0.62rem;
+    padding: 4px 8px;
+  }
+
+  /* Adjust countdown blocks for small phone grids */
+  .countdown-timer {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .time-block {
+    width: 100% !important;
+    padding: 8px 4px !important;
+  }
+
+  .time-num {
+    font-size: 1.5rem !important;
+  }
+
+  .time-label {
+    font-size: 0.52rem !important;
+    letter-spacing: 0.08em;
+  }
+
+  /* Custom styling to keep install action button legible */
+  .install-btn span {
+    display: none !important; /* Hide label, keep only download icon on tiny devices */
+  }
+  .install-btn {
+    padding: 8px !important;
+    margin-right: 2px !important;
+  }
+}
+
+
 

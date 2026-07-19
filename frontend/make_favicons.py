@@ -70,5 +70,14 @@ def draw_ico():
              sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128)])
     print("OK - Created frontend/public/favicon.ico")
 
+    # Generate PWA PNG icons
+    pwa_192 = img.resize((192, 192), Image.Resampling.LANCZOS)
+    pwa_192.save('frontend/public/pwa-192.png', format='PNG')
+    print("OK - Created frontend/public/pwa-192.png")
+
+    pwa_512 = img.resize((512, 512), Image.Resampling.LANCZOS)
+    pwa_512.save('frontend/public/pwa-512.png', format='PNG')
+    print("OK - Created frontend/public/pwa-512.png")
+
 if __name__ == '__main__':
     draw_ico()
