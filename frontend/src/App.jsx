@@ -38,12 +38,19 @@ export default function App() {
   };
 
   // Scroll progress bar + floating CTA
+  // rAF-gated so React state only updates once per frame — not on every scroll event
   useEffect(() => {
+    let rafPending = false;
     const onScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
-      setShowFloatingCta(scrollTop > window.innerHeight * 0.85);
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        setScrollProgress(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
+        setShowFloatingCta(scrollTop > window.innerHeight * 0.85);
+        rafPending = false;
+      });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -211,15 +218,31 @@ export default function App() {
       });
     });
 
-    /* Spotlight card mouse-tracking */
+    /* Spotlight card mouse-tracking
+       getBoundingClientRect() is cached per-card and refreshed only on resize.
+       This avoids a synchronous layout reflow on every mousemove at 240Hz. */
     const cleanupSpotlights = [];
+    const cardRects = new Map();
+
+    const refreshRects = () => {
+      document.querySelectorAll('.spotlight-card').forEach(card => {
+        cardRects.set(card, card.getBoundingClientRect());
+      });
+    };
+    refreshRects();
+
+    // Re-cache on resize (layout shifts the cards)
+    window.addEventListener('resize', refreshRects, { passive: true });
+    cleanupSpotlights.push(() => window.removeEventListener('resize', refreshRects));
+
     document.querySelectorAll('.spotlight-card').forEach(card => {
       const fn = (e) => {
-        const r = card.getBoundingClientRect();
+        const r = cardRects.get(card);
+        if (!r) return;
         card.style.setProperty('--mouse-x', `${e.clientX - r.left}px`);
         card.style.setProperty('--mouse-y', `${e.clientY - r.top}px`);
       };
-      card.addEventListener('mousemove', fn);
+      card.addEventListener('mousemove', fn, { passive: true });
       cleanupSpotlights.push(() => card.removeEventListener('mousemove', fn));
     });
 

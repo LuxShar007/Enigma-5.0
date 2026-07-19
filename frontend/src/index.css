@@ -50,6 +50,9 @@ html {
   color: var(--color-text-primary);
   font-family: var(--font-primary);
   overflow-x: hidden;
+  /* Enable OS-level scroll acceleration and prevent bounce/chaining */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
@@ -57,6 +60,11 @@ body {
   min-height: 100vh;
   line-height: 1.6;
   overflow-x: hidden;
+  overscroll-behavior: none;
+  /* Promote body to its own compositor layer so WebGL and DOM scroll independently */
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* --- High Performance Backgrounds --- */
@@ -150,12 +158,12 @@ p {
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: rgba(8, 10, 22, 0.55) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+  /* backdrop-filter REMOVED — blur(14px) on dozens of overlapping cards kills GPU fill-rate.
+     Replaced with a dark semi-opaque tint that is indistinguishable at card opacity levels
+     and costs zero GPU repaint per card. Only the Navbar uses a light blur (see navbar rules). */
   border-radius: 12px;
-  /* Use a pseudo-element for shadow so hover doesn't repaint */
   box-shadow: none;
   transition: border-color 0.3s ease, transform 0.3s ease;
   will-change: transform;

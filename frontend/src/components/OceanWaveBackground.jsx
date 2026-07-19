@@ -2,16 +2,110 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 /* ─────────────────────────────────────────────────────────────────
-   Enigma 5.0  ·  Ocean-Wave Particle Background
-   Smoothness techniques used:
-   • Offscreen sprite texture cached once — no per-frame redraws
-   • Delta-time normalized physics  (frame-rate independent)
-   • Velocity friction model for all easing
-   • Raycaster throttled to every 3rd frame
-   • Visibility-gated RAF (IntersectionObserver)
-   • Pixel-ratio capped at 1 for GPU headroom
-   • Integers for particle Y positions (Math.round)
+   Enigma 5.0  ·  Ocean-Wave Particle Background  (GPU-Shader Edition)
+
+   240Hz Performance Architecture:
+   • ZERO CPU particle loops — all wave + ambient math runs in GLSL
+     vertex shaders on the GPU (eliminates O(6400) + O(400) JS work/frame)
+   • Only 2 float uniforms updated per frame (time, mouseXZ)
+   • Pixel-ratio locked at 1.0 — eliminates HiDPI fill-rate cost
+   • Raycaster throttled to every 8 frames (~30Hz — invisible to eye)
+   • No IntersectionObserver — canvas is fixed/always visible
+   • performance.now() timing — no THREE.Clock deprecation overhead
+   • Fog via native THREE chunk system (zero extra draw calls)
+   • stencil: false, logarithmicDepthBuffer: false — minimal GPU state
 ───────────────────────────────────────────────────────────────── */
+
+/* ── GLSL: Wave particle vertex shader ────────────────────────── */
+const WAVE_VERT = /* glsl */`
+  #include <fog_pars_vertex>
+
+  uniform float  time;
+  uniform vec2   mouseXZ;
+  uniform float  hasHit;
+  uniform float  baseSize;
+
+  attribute float waveIX;
+  attribute float waveIZ;
+
+  void main() {
+    float ix = waveIX;
+    float iz = waveIZ;
+
+    /* Four-octave wave — identical math as original CPU version */
+    float w =
+      sin(ix * 0.13 + time * 1.3)  * 5.5 +
+      cos(iz * 0.15 + time * 1.1)  * 5.2 +
+      sin((ix * 0.08 + iz * 0.08) + time * 0.7) * 3.5 +
+      sin(ix * 0.22 + time * 2.1)  * 1.8;
+
+    float ripple = 0.0;
+    if (hasHit > 0.5) {
+      float dist = distance(position.xz, mouseXZ);
+      if (dist < 95.0) {
+        float f = 1.0 - dist / 95.0;
+        ripple = sin(dist * 0.14 - time * 4.8) * 14.0 * f * f * (3.0 - 2.0 * f);
+      }
+    }
+
+    vec3 p = vec3(position.x, w + ripple, position.z);
+    vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+    gl_PointSize = baseSize * (300.0 / -mvPosition.z);
+    gl_Position  = projectionMatrix * mvPosition;
+
+    #include <fog_vertex>
+  }
+`;
+
+const WAVE_FRAG = /* glsl */`
+  #include <fog_pars_fragment>
+
+  uniform sampler2D map;
+
+  void main() {
+    vec4 c = texture2D(map, gl_PointCoord);
+    if (c.a < 0.01) discard;
+    gl_FragColor = vec4(c.rgb, c.a);
+    #include <fog_fragment>
+  }
+`;
+
+/* ── GLSL: Ambient floating particle vertex shader ────────────── */
+const AMBIENT_VERT = /* glsl */`
+  #include <fog_pars_vertex>
+
+  uniform float time;
+  uniform float baseSize;
+
+  attribute float phase;
+
+  void main() {
+    /* Gentle sinusoidal drift — no CPU update needed */
+    vec3 p = position;
+    p.x += sin(time * 0.07 + phase) * 3.5;
+    p.y += cos(time * 0.18 + phase) * 2.2;
+
+    vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+    gl_PointSize = baseSize * (300.0 / -mvPosition.z);
+    gl_Position  = projectionMatrix * mvPosition;
+
+    #include <fog_vertex>
+  }
+`;
+
+const AMBIENT_FRAG = /* glsl */`
+  #include <fog_pars_fragment>
+
+  uniform sampler2D map;
+
+  void main() {
+    vec4 c = texture2D(map, gl_PointCoord);
+    if (c.a < 0.01) discard;
+    gl_FragColor = vec4(c.rgb, c.a * 0.60);
+    #include <fog_fragment>
+  }
+`;
+
 export default function OceanWaveBackground() {
   const containerRef = useRef(null);
   const canvasRef    = useRef(null);
@@ -22,25 +116,25 @@ export default function OceanWaveBackground() {
     let width  = window.innerWidth;
     let height = window.innerHeight;
 
-    /* ── Cached offscreen sprite (drawn once, reused every frame) ── */
-    const SPRITE_SIZE = 64;
-    const offscreen   = document.createElement('canvas');
-    offscreen.width   = SPRITE_SIZE;
-    offscreen.height  = SPRITE_SIZE;
-    const offCtx      = offscreen.getContext('2d');
-    const half        = SPRITE_SIZE / 2;
-    const grad        = offCtx.createRadialGradient(half, half, 0, half, half, half);
-    grad.addColorStop(0,    'rgba(255,255,255,1)');
-    grad.addColorStop(0.22, 'rgba(0,242,254,0.9)');
-    grad.addColorStop(0.55, 'rgba(100,80,240,0.45)');
-    grad.addColorStop(0.80, 'rgba(157,78,221,0.18)');
-    grad.addColorStop(1,    'rgba(0,0,0,0)');
-    offCtx.fillStyle = grad;
-    offCtx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    /* ── Sprite texture — drawn once, shared by both particle systems ── */
+    const SZ   = 64;
+    const off  = document.createElement('canvas');
+    off.width  = SZ; off.height = SZ;
+    const ctx  = off.getContext('2d');
+    const half = SZ / 2;
+    const g    = ctx.createRadialGradient(half, half, 0, half, half, half);
+    g.addColorStop(0,    'rgba(255,255,255,1)');
+    g.addColorStop(0.22, 'rgba(0,242,254,0.9)');
+    g.addColorStop(0.55, 'rgba(100,80,240,0.45)');
+    g.addColorStop(0.80, 'rgba(157,78,221,0.18)');
+    g.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SZ, SZ);
+    const spriteTex = new THREE.CanvasTexture(off);
 
-    /* ── Scene ── */
+    /* ── Scene + Fog ── */
     const scene = new THREE.Scene();
-    scene.fog   = new THREE.Fog(0x02040a, 200, 1600);
+    scene.fog   = new THREE.Fog(0x02040a, 220, 1600);
 
     /* ── Camera ── */
     const camera = new THREE.PerspectiveCamera(55, width / height, 1, 2400);
@@ -51,12 +145,13 @@ export default function OceanWaveBackground() {
     let renderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        canvas:          canvasRef.current,
-        antialias:       false,
-        alpha:           false,
-        powerPreference: 'high-performance',
+        canvas:               canvasRef.current,
+        antialias:            false,
+        alpha:                false,
+        stencil:              false,
+        powerPreference:      'high-performance',
       });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+      renderer.setPixelRatio(1.0);          // always 1.0 — HiDPI savings
       renderer.setSize(width, height);
       renderer.setClearColor(0x02040a, 1);
     } catch (err) {
@@ -75,265 +170,208 @@ export default function OceanWaveBackground() {
     dirLight.position.set(200, 300, 100);
     scene.add(dirLight);
 
-    /* ── Wave Grid: 80×80 = 6,400 pts ── */
-    const NX    = 80;
-    const NZ    = 80;
+    /* ── Wave Grid geometry (positions static — shader animates Y) ── */
+    const NX    = 72;
+    const NZ    = 72;
     const SEP   = 18;
     const COUNT = NX * NZ;
 
-    const geometry  = new THREE.BufferGeometry();
-    const positions = new Float32Array(COUNT * 3);
-
-    let pi = 0;
+    const pos  = new Float32Array(COUNT * 3);
+    const ixA  = new Float32Array(COUNT);
+    const izA  = new Float32Array(COUNT);
+    let pi = 0, ai = 0;
     for (let ix = 0; ix < NX; ix++) {
       for (let iz = 0; iz < NZ; iz++) {
-        positions[pi]     = ix * SEP - (NX * SEP) / 2;
-        positions[pi + 1] = 0;
-        positions[pi + 2] = iz * SEP - (NZ * SEP) / 2 - 150;
-        pi += 3;
+        pos[pi]     = ix * SEP - (NX * SEP) / 2;
+        pos[pi + 1] = 0;
+        pos[pi + 2] = iz * SEP - (NZ * SEP) / 2 - 150;
+        ixA[ai] = ix;
+        izA[ai] = iz;
+        ai++; pi += 3;
       }
     }
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const waveGeo = new THREE.BufferGeometry();
+    waveGeo.setAttribute('position', new THREE.BufferAttribute(pos,  3));
+    waveGeo.setAttribute('waveIX',   new THREE.BufferAttribute(ixA,  1));
+    waveGeo.setAttribute('waveIZ',   new THREE.BufferAttribute(izA,  1));
 
-    const spriteTex = new THREE.CanvasTexture(offscreen);
-    const material  = new THREE.PointsMaterial({
-      size:        6.5,
-      map:         spriteTex,
-      blending:    THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite:  false,
-      sizeAttenuation: true,
+    /* ── Wave ShaderMaterial (fog uniforms merged in) ── */
+    const waveUniforms = THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        time:     { value: 0 },
+        mouseXZ:  { value: new THREE.Vector2(0, 0) },
+        hasHit:   { value: 0.0 },
+        baseSize: { value: 6.5 },
+        map:      { value: spriteTex },
+      }
+    ]);
+    const waveMat = new THREE.ShaderMaterial({
+      uniforms:       waveUniforms,
+      vertexShader:   WAVE_VERT,
+      fragmentShader: WAVE_FRAG,
+      blending:       THREE.AdditiveBlending,
+      transparent:    true,
+      depthWrite:     false,
+      fog:            true,
     });
+    scene.add(new THREE.Points(waveGeo, waveMat));
 
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-
-    /* ── Ambient Floating Particles (600 points scattered in space) ── */
-    const ambientCount = 600;
-    const ambientGeometry = new THREE.BufferGeometry();
-    const ambientPositions = new Float32Array(ambientCount * 3);
-    const ambientSpeeds = new Float32Array(ambientCount);
-    const ambientPhases = new Float32Array(ambientCount);
-
-    for (let j = 0; j < ambientCount; j++) {
-      // Scatter in a huge box surrounding camera: X (-800 to 800), Y (-100 to 500), Z (-1000 to 600)
-      ambientPositions[j * 3]     = (Math.random() - 0.5) * 1600;
-      ambientPositions[j * 3 + 1] = (Math.random() - 0.5) * 600 + 200;
-      ambientPositions[j * 3 + 2] = (Math.random() - 0.5) * 1600 - 200;
-      ambientSpeeds[j] = Math.random() * 0.12 + 0.04;
-      ambientPhases[j] = Math.random() * Math.PI * 2;
+    /* ── Ambient Particles geometry (positions static — shader drifts) ── */
+    const AMB   = 420;
+    const ambGeo = new THREE.BufferGeometry();
+    const ambPos = new Float32Array(AMB * 3);
+    const phases = new Float32Array(AMB);
+    for (let j = 0; j < AMB; j++) {
+      ambPos[j * 3]     = (Math.random() - 0.5) * 1600;
+      ambPos[j * 3 + 1] = Math.random() * 700 - 100;
+      ambPos[j * 3 + 2] = (Math.random() - 0.5) * 1600 - 200;
+      phases[j]          = Math.random() * Math.PI * 2;
     }
-    ambientGeometry.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+    ambGeo.setAttribute('position', new THREE.BufferAttribute(ambPos,  3));
+    ambGeo.setAttribute('phase',    new THREE.BufferAttribute(phases,  1));
 
-    const ambientMaterial = new THREE.PointsMaterial({
-      size: 4.5,
-      map: spriteTex,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite: false,
-      sizeAttenuation: true,
-      opacity: 0.65
+    const ambUniforms = THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        time:     { value: 0 },
+        baseSize: { value: 4.0 },
+        map:      { value: spriteTex },
+      }
+    ]);
+    const ambMat = new THREE.ShaderMaterial({
+      uniforms:       ambUniforms,
+      vertexShader:   AMBIENT_VERT,
+      fragmentShader: AMBIENT_FRAG,
+      blending:       THREE.AdditiveBlending,
+      transparent:    true,
+      depthWrite:     false,
+      fog:            true,
     });
-
-    const ambientParticles = new THREE.Points(ambientGeometry, ambientMaterial);
-    scene.add(ambientParticles);
+    scene.add(new THREE.Points(ambGeo, ambMat));
 
     /* ── Crystals ── */
     const crystals = [];
-    const addCrystal = (geom, color, pos) => {
-      const mat = new THREE.MeshPhongMaterial({
-        color,
-        emissive:    new THREE.Color(color).multiplyScalar(0.14),
-        specular:    new THREE.Color(0xffffff),
-        shininess:   110,
-        transparent: true,
-        opacity:     0.74,
-        side:        THREE.DoubleSide,
-        flatShading: true,
+    const addCrystal = (geom, color, p) => {
+      const mat  = new THREE.MeshPhongMaterial({
+        color, emissive: new THREE.Color(color).multiplyScalar(0.14),
+        specular: new THREE.Color(0xffffff), shininess: 110,
+        transparent: true, opacity: 0.74,
+        side: THREE.DoubleSide, flatShading: true,
       });
       const mesh = new THREE.Mesh(geom, mat);
-      mesh.position.copy(pos);
+      mesh.position.copy(p);
       scene.add(mesh);
-
-      const edges   = new THREE.EdgesGeometry(geom);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
-      mesh.add(new THREE.LineSegments(edges, lineMat));
-
-      crystals.push({
-        mesh,
-        basePos:   pos.clone(),
+      mesh.add(new THREE.LineSegments(
+        new THREE.EdgesGeometry(geom),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 })
+      ));
+      crystals.push({ mesh, baseY: p.y,
         rotSpeedX: (Math.random() - 0.5) * 0.011 + 0.004,
         rotSpeedY: (Math.random() - 0.5) * 0.011 + 0.006,
-        /* smoothed velocity state */
-        velX: 0,
-        velY: 0,
+        velX: 0, velY: 0,
       });
     };
-
     addCrystal(new THREE.OctahedronGeometry(20),  0x00f2fe, new THREE.Vector3(-130, 42, -65));
     addCrystal(new THREE.OctahedronGeometry(24),  0x9d4edd, new THREE.Vector3(130,  62, -95));
     addCrystal(new THREE.IcosahedronGeometry(16), 0x00f5d4, new THREE.Vector3(30,   48, -180));
 
-    /* ── Mouse state — velocity-damped camera ── */
+    /* ── Input state — minimal per-event work ── */
     const rawMouse    = { x: -9999, y: -9999 };
     const camVelocity = { x: 0 };
+    let   targetScrollY = 0;
+    let   smoothScrollY = 0;
+
     const onMouseMove = (e) => {
       rawMouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
       rawMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     };
+    const onScroll = () => { targetScrollY = window.scrollY; };
     window.addEventListener('mousemove', onMouseMove, { passive: true });
+    window.addEventListener('scroll',    onScroll,    { passive: true });
 
-    /* ── Scroll state for 3D parallax scroll ── */
-    let targetScrollY = 0;
-    let smoothScrollY = 0;
-    const onScroll = () => {
-      targetScrollY = window.scrollY;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    /* ── Raycaster (throttled every 3 frames) ── */
-    const raycaster   = new THREE.Raycaster();
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    /* ── Raycaster — reuse Vector2 to avoid GC pressure ── */
+    const raycaster    = new THREE.Raycaster();
+    const groundPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const intersection = new THREE.Vector3();
-    let hasHit     = false;
-    let frameCount = 0;
+    const mouseVec2    = new THREE.Vector2();
+    let   hasHit       = false;
+    let   frameCount   = 0;
 
-    /* ── Visibility gate ── */
-    let isVisible = true;
-    const visObs  = new IntersectionObserver(
-      ([e]) => { isVisible = e.isIntersecting; },
-      { threshold: 0.01 }
-    );
-    visObs.observe(containerRef.current);
+    /* ── Timing via performance.now() — no THREE.Clock ── */
+    const startTime = performance.now();
+    let   lastTime  = startTime;
+    let   rafId;
 
-    /* ── Clock for delta-time ── */
-    const clock = new THREE.Clock();
+    /* ── Precompute per-loop ease factor at reference dt=1/60 ── */
+    const easeBase = (base, dtRef) => 1 - Math.pow(base, dtRef * 60);
 
-    /* ── Animation loop ── */
-    let rafId;
-
+    /* ─────────────── RAF loop — ZERO particle CPU updates ─────────── */
     const animate = () => {
       rafId = requestAnimationFrame(animate);
-      if (!isVisible) return;
 
-      const dt   = Math.min(clock.getDelta(), 0.05);  // cap at 50ms to prevent jumps
-      const time = clock.elapsedTime;
+      const now  = performance.now();
+      const dt   = Math.min((now - lastTime) * 0.001, 0.05);
+      lastTime   = now;
+      const time = (now - startTime) * 0.001;
 
       frameCount++;
 
-      // Smooth scroll interpolation
-      const scrollEase = 1 - Math.pow(0.05, dt * 60);
-      smoothScrollY += (targetScrollY - smoothScrollY) * scrollEase;
-      const scrollOffset = smoothScrollY * 0.08;
+      /* ── Uniforms update (GPU receives time once per frame) ── */
+      waveUniforms.time.value = time;
+      ambUniforms.time.value  = time;
 
-      // Animate ambient particles: drift and bob
-      const ambArr = ambientGeometry.attributes.position.array;
-      for (let j = 0; j < ambientCount; j++) {
-        const idx3 = j * 3;
-        ambArr[idx3]     += Math.sin(time * 0.08 + ambientPhases[j]) * 0.15;
-        ambArr[idx3 + 1] += Math.cos(time * 0.2 + ambientPhases[j]) * 0.08;
-        
-        // Wrap edges
-        if (Math.abs(ambArr[idx3]) > 800) ambArr[idx3] = -ambArr[idx3];
-        if (ambArr[idx3 + 1] > 600) ambArr[idx3 + 1] = -100;
-        if (ambArr[idx3 + 1] < -100) ambArr[idx3 + 1] = 600;
-      }
-      ambientGeometry.attributes.position.needsUpdate = true;
+      /* ── Smooth scroll parallax ── */
+      smoothScrollY   += (targetScrollY - smoothScrollY) * easeBase(0.05, dt);
+      const scrollOff  = smoothScrollY * 0.08;
 
-      /* ── Raycaster every 3rd frame ── */
-      if (frameCount % 3 === 0) {
+      /* ── Raycaster throttled to every 8 frames (~30Hz) ── */
+      if (frameCount % 8 === 0) {
         if (Math.abs(rawMouse.x) <= 1 && Math.abs(rawMouse.y) <= 1) {
-          raycaster.setFromCamera(
-            new THREE.Vector2(rawMouse.x, rawMouse.y),
-            camera
-          );
+          mouseVec2.set(rawMouse.x, rawMouse.y);
+          raycaster.setFromCamera(mouseVec2, camera);
           hasHit = !!raycaster.ray.intersectPlane(groundPlane, intersection);
         } else {
           hasHit = false;
         }
+        waveUniforms.hasHit.value = hasHit ? 1.0 : 0.0;
+        if (hasHit) waveUniforms.mouseXZ.value.set(intersection.x, intersection.z);
       }
 
-      /* ── Mouse light — velocity-based smooth follow ── */
-      const lightTargetX = hasHit ? intersection.x : 0;
-      const lightTargetZ = hasHit ? intersection.z : mouseLight.position.z;
-      mouseLight.position.x += (lightTargetX - mouseLight.position.x) * (1 - Math.pow(0.04, dt * 60));
-      mouseLight.position.z += (lightTargetZ - mouseLight.position.z) * (1 - Math.pow(0.04, dt * 60));
-      mouseLight.intensity   += ((hasHit ? 3.2 : 0.9) - mouseLight.intensity) * (1 - Math.pow(0.06, dt * 60));
+      /* ── Mouse light smooth follow ── */
+      const lE = easeBase(0.04, dt);
+      mouseLight.position.x += ((hasHit ? intersection.x : 0) - mouseLight.position.x) * lE;
+      mouseLight.position.z += ((hasHit ? intersection.z : mouseLight.position.z) - mouseLight.position.z) * lE;
+      mouseLight.intensity  += ((hasHit ? 3.2 : 0.9) - mouseLight.intensity) * easeBase(0.06, dt);
 
-      /* ── Wave vertex update (integer snap for smoothness) ── */
-      const posArr = geometry.attributes.position.array;
-      let i = 0;
-      for (let ix = 0; ix < NX; ix++) {
-        for (let iz = 0; iz < NZ; iz++) {
-          const x = posArr[i];
-          const z = posArr[i + 2];
-
-          const wave =
-            Math.sin(ix * 0.13 + time * 1.3)  * 5.5 +
-            Math.cos(iz * 0.15 + time * 1.1)  * 5.2 +
-            Math.sin((ix * 0.08 + iz * 0.08) + time * 0.7) * 3.5 +
-            Math.sin(ix * 0.22 + time * 2.1)  * 1.8;
-
-          let ripple = 0;
-          if (hasHit) {
-            const dx   = x - intersection.x;
-            const dz   = z - intersection.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < 95) {
-              const f = 1 - dist / 95;
-              ripple  = Math.sin(dist * 0.14 - time * 4.8) * 14 * f * f * (3 - 2 * f);
-            }
-          }
-
-          posArr[i + 1] = Math.round((wave + ripple) * 10) / 10; // snap to 0.1 grid
-          i += 3;
-        }
-      }
-      geometry.attributes.position.needsUpdate = true;
-
-      /* ── Crystal animation — velocity/friction model ── */
+      /* ── Crystal animation — minimal: 3 meshes only ── */
       for (let c = 0; c < crystals.length; c++) {
-        const cr   = crystals[c];
-        const mesh = cr.mesh;
+        const cr = crystals[c];
+        cr.mesh.position.y = cr.baseY + Math.sin(time * 0.72 + c * 1.4) * 4.2;
 
-        /* Float bob */
-        mesh.position.y = cr.basePos.y + Math.sin(time * 0.72 + c * 1.4) * 4.2;
-
-        /* Spin multiplier based on proximity to mouse */
         let spinMult = 1.0;
         if (hasHit) {
-          const dx   = mesh.position.x - intersection.x;
-          const dz   = mesh.position.z - intersection.z;
+          const dx   = cr.mesh.position.x - intersection.x;
+          const dz   = cr.mesh.position.z - intersection.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
           if (dist < 120) spinMult = 1 + 3.2 * (1 - dist / 120) * (1 - dist / 120);
         }
-
-        /* Velocity spring */
-        const targetVelX = cr.rotSpeedX * spinMult;
-        const targetVelY = cr.rotSpeedY * spinMult;
-        const ease = 1 - Math.pow(0.04, dt * 60);
-        cr.velX += (targetVelX - cr.velX) * ease;
-        cr.velY += (targetVelY - cr.velY) * ease;
-        mesh.rotation.x += cr.velX;
-        mesh.rotation.y += cr.velY;
+        const cE  = easeBase(0.04, dt);
+        cr.velX  += (cr.rotSpeedX * spinMult - cr.velX) * cE;
+        cr.velY  += (cr.rotSpeedY * spinMult - cr.velY) * cE;
+        cr.mesh.rotation.x += cr.velX;
+        cr.mesh.rotation.y += cr.velY;
       }
 
-      /* ── Camera drift + scroll parallax ── */
-      const camTargetX = rawMouse.x * 20;
-      const camEase    = 1 - Math.pow(0.025, dt * 60);
-      camVelocity.x   += (camTargetX - camera.position.x) * camEase * 0.08;
-      camVelocity.x   *= 0.88;  // friction
-      
-      if (Math.abs(rawMouse.x) <= 1) {
-        camera.position.x += camVelocity.x;
-      }
-      
-      // Update camera height (Y) and depth (Z) based on scroll
-      camera.position.y = 82 + scrollOffset * 0.45;
-      camera.position.z = 295 + scrollOffset * 0.55;
-      
-      // Keep looking at a point that scrolls with the camera
-      camera.lookAt(0, -12 + scrollOffset * 0.35, -150);
+      /* ── Camera: horizontal mouse drift + vertical scroll parallax ── */
+      const cE2   = easeBase(0.025, dt);
+      camVelocity.x += (rawMouse.x * 20 - camera.position.x) * cE2 * 0.08;
+      camVelocity.x *= 0.88;
+      if (Math.abs(rawMouse.x) <= 1) camera.position.x += camVelocity.x;
+
+      camera.position.y = 82  + scrollOff * 0.45;
+      camera.position.z = 295 + scrollOff * 0.55;
+      camera.lookAt(0, -12 + scrollOff * 0.35, -150);
 
       renderer.render(scene, camera);
     };
@@ -353,22 +391,16 @@ export default function OceanWaveBackground() {
     /* ── Cleanup ── */
     return () => {
       cancelAnimationFrame(rafId);
-      visObs.disconnect();
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      geometry.dispose();
-      material.dispose();
-      ambientGeometry.dispose();
-      ambientMaterial.dispose();
+      window.removeEventListener('scroll',    onScroll);
+      window.removeEventListener('resize',    onResize);
+      waveGeo.dispose();  waveMat.dispose();
+      ambGeo.dispose();   ambMat.dispose();
       spriteTex.dispose();
       crystals.forEach(({ mesh }) => {
         mesh.geometry.dispose();
         mesh.material.dispose();
-        mesh.children.forEach(ch => {
-          ch.geometry?.dispose();
-          ch.material?.dispose();
-        });
+        mesh.children.forEach(ch => { ch.geometry?.dispose(); ch.material?.dispose(); });
       });
       renderer.dispose();
     };
