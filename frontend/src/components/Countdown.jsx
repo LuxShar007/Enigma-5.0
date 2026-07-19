@@ -12,7 +12,7 @@ export default function Countdown() {
   const [registeredCount, setRegisteredCount] = useState(() => {
     // Start with a high realistic number near capacity
     const saved = localStorage.getItem('enigma_sim_registered');
-    return saved ? parseInt(saved, 10) : 2847;
+    return saved ? parseInt(saved, 10) : 1905;
   });
   
   const [liveAlert, setLiveAlert] = useState(null); // { message: string, id: number }
