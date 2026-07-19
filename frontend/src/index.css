@@ -3812,20 +3812,7 @@ html {
   backface-visibility: hidden;
 }
 
-/* Simplify reveal-blur — remove CSS filter (expensive), use opacity+Y only */
-.reveal-blur {
-  opacity: 0 !important;
-  transform: translateY(32px) !important;
-  filter: none !important;
-  transition:
-    opacity   0.85s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-.reveal-blur.in-view {
-  opacity: 1 !important;
-  transform: translateY(0) !important;
-  filter: none !important;
-}
+
 
 /* ==========================================================================
    AURORA DESIGN THEME — Deep-Space Gradient Backdrop
