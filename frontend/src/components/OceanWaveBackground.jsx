@@ -40,7 +40,7 @@ export default function OceanWaveBackground() {
 
     /* ── Scene ── */
     const scene = new THREE.Scene();
-    scene.fog   = new THREE.FogExp2(0x02040a, 0.0025);
+    scene.fog   = new THREE.Fog(0x02040a, 200, 1600);
 
     /* ── Camera ── */
     const camera = new THREE.PerspectiveCamera(55, width / height, 1, 2400);
@@ -75,10 +75,10 @@ export default function OceanWaveBackground() {
     dirLight.position.set(200, 300, 100);
     scene.add(dirLight);
 
-    /* ── Wave Grid: 52×52 = 2,704 pts ── */
-    const NX    = 52;
-    const NZ    = 52;
-    const SEP   = 13;
+    /* ── Wave Grid: 80×80 = 6,400 pts ── */
+    const NX    = 80;
+    const NZ    = 80;
+    const SEP   = 18;
     const COUNT = NX * NZ;
 
     const geometry  = new THREE.BufferGeometry();
@@ -89,7 +89,7 @@ export default function OceanWaveBackground() {
       for (let iz = 0; iz < NZ; iz++) {
         positions[pi]     = ix * SEP - (NX * SEP) / 2;
         positions[pi + 1] = 0;
-        positions[pi + 2] = iz * SEP - (NZ * SEP) / 2 - 110;
+        positions[pi + 2] = iz * SEP - (NZ * SEP) / 2 - 150;
         pi += 3;
       }
     }
@@ -107,6 +107,36 @@ export default function OceanWaveBackground() {
 
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
+
+    /* ── Ambient Floating Particles (600 points scattered in space) ── */
+    const ambientCount = 600;
+    const ambientGeometry = new THREE.BufferGeometry();
+    const ambientPositions = new Float32Array(ambientCount * 3);
+    const ambientSpeeds = new Float32Array(ambientCount);
+    const ambientPhases = new Float32Array(ambientCount);
+
+    for (let j = 0; j < ambientCount; j++) {
+      // Scatter in a huge box surrounding camera: X (-800 to 800), Y (-100 to 500), Z (-1000 to 600)
+      ambientPositions[j * 3]     = (Math.random() - 0.5) * 1600;
+      ambientPositions[j * 3 + 1] = (Math.random() - 0.5) * 600 + 200;
+      ambientPositions[j * 3 + 2] = (Math.random() - 0.5) * 1600 - 200;
+      ambientSpeeds[j] = Math.random() * 0.12 + 0.04;
+      ambientPhases[j] = Math.random() * Math.PI * 2;
+    }
+    ambientGeometry.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+
+    const ambientMaterial = new THREE.PointsMaterial({
+      size: 4.5,
+      map: spriteTex,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite: false,
+      sizeAttenuation: true,
+      opacity: 0.65
+    });
+
+    const ambientParticles = new THREE.Points(ambientGeometry, ambientMaterial);
+    scene.add(ambientParticles);
 
     /* ── Crystals ── */
     const crystals = [];
@@ -153,6 +183,14 @@ export default function OceanWaveBackground() {
     };
     window.addEventListener('mousemove', onMouseMove, { passive: true });
 
+    /* ── Scroll state for 3D parallax scroll ── */
+    let targetScrollY = 0;
+    let smoothScrollY = 0;
+    const onScroll = () => {
+      targetScrollY = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
     /* ── Raycaster (throttled every 3 frames) ── */
     const raycaster   = new THREE.Raycaster();
     const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -182,6 +220,25 @@ export default function OceanWaveBackground() {
       const time = clock.elapsedTime;
 
       frameCount++;
+
+      // Smooth scroll interpolation
+      const scrollEase = 1 - Math.pow(0.05, dt * 60);
+      smoothScrollY += (targetScrollY - smoothScrollY) * scrollEase;
+      const scrollOffset = smoothScrollY * 0.08;
+
+      // Animate ambient particles: drift and bob
+      const ambArr = ambientGeometry.attributes.position.array;
+      for (let j = 0; j < ambientCount; j++) {
+        const idx3 = j * 3;
+        ambArr[idx3]     += Math.sin(time * 0.08 + ambientPhases[j]) * 0.15;
+        ambArr[idx3 + 1] += Math.cos(time * 0.2 + ambientPhases[j]) * 0.08;
+        
+        // Wrap edges
+        if (Math.abs(ambArr[idx3]) > 800) ambArr[idx3] = -ambArr[idx3];
+        if (ambArr[idx3 + 1] > 600) ambArr[idx3 + 1] = -100;
+        if (ambArr[idx3 + 1] < -100) ambArr[idx3 + 1] = 600;
+      }
+      ambientGeometry.attributes.position.needsUpdate = true;
 
       /* ── Raycaster every 3rd frame ── */
       if (frameCount % 3 === 0) {
@@ -261,15 +318,22 @@ export default function OceanWaveBackground() {
         mesh.rotation.y += cr.velY;
       }
 
-      /* ── Camera drift — velocity with friction ── */
+      /* ── Camera drift + scroll parallax ── */
       const camTargetX = rawMouse.x * 20;
       const camEase    = 1 - Math.pow(0.025, dt * 60);
       camVelocity.x   += (camTargetX - camera.position.x) * camEase * 0.08;
       camVelocity.x   *= 0.88;  // friction
+      
       if (Math.abs(rawMouse.x) <= 1) {
         camera.position.x += camVelocity.x;
       }
-      camera.lookAt(0, -12, -150);
+      
+      // Update camera height (Y) and depth (Z) based on scroll
+      camera.position.y = 82 + scrollOffset * 0.45;
+      camera.position.z = 295 + scrollOffset * 0.55;
+      
+      // Keep looking at a point that scrolls with the camera
+      camera.lookAt(0, -12 + scrollOffset * 0.35, -150);
 
       renderer.render(scene, camera);
     };
@@ -291,9 +355,12 @@ export default function OceanWaveBackground() {
       cancelAnimationFrame(rafId);
       visObs.disconnect();
       window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       geometry.dispose();
       material.dispose();
+      ambientGeometry.dispose();
+      ambientMaterial.dispose();
       spriteTex.dispose();
       crystals.forEach(({ mesh }) => {
         mesh.geometry.dispose();
