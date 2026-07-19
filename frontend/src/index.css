@@ -4925,6 +4925,17 @@ html {
     padding: 24px 18px !important;
   }
 
+  /* Prizes (Rewards Nodes) layout flow */
+  .prizes-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px;
+    margin-top: 30px;
+  }
+  
+  .prize-card {
+    padding: 30px 20px !important;
+  }
+
   /* Secure Modal mobile alignment (leaves space for keyboard popup) */
   .modal-overlay {
     padding: 10px;
