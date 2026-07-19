@@ -11,6 +11,7 @@ import Tracks from './components/Tracks';
 import Prizes from './components/Prizes';
 import Timeline from './components/Timeline';
 import Faq from './components/Faq';
+import PreviousEvents from './components/PreviousEvents';
 import VenueBeacon from './components/VenueBeacon';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
@@ -338,6 +339,7 @@ export default function App() {
         <Prizes />
         <Timeline />
         <Faq />
+        <PreviousEvents />
         <VenueBeacon />
         <Contact />
       </main>
