@@ -50,8 +50,6 @@ html {
   color: var(--color-text-primary);
   font-family: var(--font-primary);
   overflow-x: hidden;
-  /* Enable OS-level scroll acceleration and prevent bounce/chaining */
-  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -60,9 +58,6 @@ body {
   min-height: 100vh;
   line-height: 1.6;
   overflow-x: hidden;
-  overscroll-behavior: none;
-  /* Promote body to its own compositor layer so WebGL and DOM scroll independently */
-  transform: translateZ(0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
