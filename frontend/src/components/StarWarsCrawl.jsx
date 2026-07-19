@@ -1,33 +1,30 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 const CRAWL_TEXT = [
-  { text: "A long time ago in a lab far, far away....", type: "intro" },
-  { text: "", type: "spacer" },
-  { text: "ENIGMA 5.0", type: "title" },
-  { text: "", type: "spacer" },
+  { text: "ENIGMA 5.0",          type: "title" },
+  { text: "",                     type: "spacer" },
   { text: "The SIES CSI chapter has awakened.", type: "body" },
-  { text: "", type: "spacer" },
+  { text: "",                     type: "spacer" },
   { text: "In a galaxy of deadlines and debug sessions,", type: "body" },
   { text: "a new generation of rebel coders must rise", type: "body" },
   { text: "to conquer the ultimate 36-hour challenge.", type: "body" },
-  { text: "", type: "spacer" },
-  { text: "FinTech and HealthTech domains call for", type: "body" },
-  { text: "the brightest undergraduate minds — those", type: "body" },
-  { text: "brave enough to build, ship, and present", type: "body" },
+  { text: "",                     type: "spacer" },
+  { text: "FinTech and HealthTech domains call for",     type: "body" },
+  { text: "the brightest undergraduate minds —",        type: "body" },
+  { text: "brave enough to build, ship, and present",   type: "body" },
   { text: "solutions under extreme galactic pressure.", type: "body" },
-  { text: "", type: "spacer" },
-  { text: "The Force is strong with those who code.", type: "body" },
-  { text: "Will you answer the call?", type: "body" },
-  { text: "", type: "spacer" },
-  { text: "May the Code be with you...", type: "body" },
+  { text: "",                     type: "spacer" },
+  { text: "May the Code be with you...",               type: "body" },
 ];
 
 export default function StarWarsCrawl({ onComplete }) {
-  const [phase, setPhase] = useState('intro');   // intro | logo | crawl | exit
-  const hasCompleted = useRef(false);
-  const phaseRef = useRef('intro');
-  // Keep onComplete in a ref so useCallback doesn't re-run when parent re-renders
-  const onCompleteRef = useRef(onComplete);
+  // ── phase: 'logo' → 'crawl' → 'exit'
+  // NOTE: we skip the 'intro' phase to save time — jump straight to logo
+  const [phase, setPhase]       = useState('logo');
+  const [lasers, setLasers]     = useState([]);
+  const hasCompleted             = useRef(false);
+  const phaseRef                 = useRef('logo');
+  const onCompleteRef            = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   const finish = useCallback(() => {
@@ -35,38 +32,51 @@ export default function StarWarsCrawl({ onComplete }) {
     hasCompleted.current = true;
     setPhase('exit');
     phaseRef.current = 'exit';
-    // Unlock scroll, snap to top, then unmount the crawl
     document.body.style.overflow = '';
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    setTimeout(() => onCompleteRef.current?.(), 900);
+    setTimeout(() => onCompleteRef.current?.(), 700);
   }, []);
 
-  // Lock body scroll while crawl is active so nothing beneath can shift
+  // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, []);
 
-  // Phase progression timeline
+  // Phase timeline — total 3 seconds max
+  // logo: 0 → 1.2s
+  // crawl: 1.2s → 3.0s
+  // auto-exit: 3.0s
   useEffect(() => {
-    // intro line: 0 → 2.8s
-    // logo flash: 2.8s → 5.2s
-    // crawl: 5.2s → 13s
-    // auto-exit: 14s
-    const t1 = setTimeout(() => { setPhase('logo'); phaseRef.current = 'logo'; }, 2800);
-    const t2 = setTimeout(() => { setPhase('crawl'); phaseRef.current = 'crawl'; }, 5200);
-    const t3 = setTimeout(finish, 14000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    const t1 = setTimeout(() => { setPhase('crawl'); phaseRef.current = 'crawl'; }, 1200);
+    const t2 = setTimeout(finish, 3000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [finish]);
 
-  // Keydown / click to skip
+  // Skip on keydown / click
   useEffect(() => {
-    const onSkip = () => finish();
-    window.addEventListener('keydown', onSkip);
-    return () => window.removeEventListener('keydown', onSkip);
+    window.addEventListener('keydown', finish);
+    return () => window.removeEventListener('keydown', finish);
   }, [finish]);
+
+  // Spawn random laser bolts every ~350ms
+  useEffect(() => {
+    let id = 0;
+    const interval = setInterval(() => {
+      const laser = {
+        id: id++,
+        x: Math.random() * 100,    // vw
+        y: Math.random() * 70 + 5, // vh
+        angle: Math.random() * 30 - 15,
+        color: Math.random() < 0.5 ? '#ff3b3b' : '#2ee8ff',
+        length: Math.random() * 120 + 60,
+        duration: Math.random() * 0.2 + 0.12,
+      };
+      setLasers(prev => [...prev.slice(-6), laser]);
+      setTimeout(() => setLasers(prev => prev.filter(l => l.id !== laser.id)), 300);
+    }, 340);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div
@@ -74,29 +84,47 @@ export default function StarWarsCrawl({ onComplete }) {
       onClick={finish}
       aria-hidden="true"
     >
-      {/* Cinematic star field canvas */}
+      {/* Cinematic star field */}
       <StarField />
 
-      {/* Top + bottom vignettes */}
-      <div className="sw-vignette-top" />
+      {/* Laser bolts */}
+      {lasers.map(l => (
+        <div
+          key={l.id}
+          className="sw-laser"
+          style={{
+            left: `${l.x}vw`,
+            top:  `${l.y}vh`,
+            width: `${l.length}px`,
+            '--laser-color': l.color,
+            '--laser-dur':   `${l.duration}s`,
+            transform: `rotate(${l.angle}deg)`,
+          }}
+        />
+      ))}
+
+      {/* Vignettes */}
+      <div className="sw-vignette-top"  />
       <div className="sw-vignette-bottom" />
 
-      {/* Phase 1 — "A long time ago..." */}
-      {(phase === 'intro') && (
-        <div className="sw-intro-line sw-fade-in-out">
-          A long time ago in a lab far, far away....
-        </div>
-      )}
-
-      {/* Phase 2 — ENIGMA logo flash (shrinks into horizon) */}
+      {/* ENIGMA logo flash */}
       {(phase === 'logo' || phase === 'crawl') && (
         <div className={`sw-logo-flash ${phase === 'crawl' ? 'sw-logo-shrink' : 'sw-logo-appear'}`}>
+          {/* Orbital ring */}
+          <div className="sw-logo-ring" />
           <div className="sw-logo-text">ENIGMA</div>
           <div className="sw-logo-version">5 . 0</div>
+          <div className="sw-logo-tagline">THE CIPHER AWAKENS</div>
         </div>
       )}
 
-      {/* Phase 3 — Perspective text crawl */}
+      {/* TIE fighter flyby */}
+      {phase === 'logo' && <TieFighter />}
+
+      {/* Warp tunnel flash at transition */}
+      {phase === 'crawl' && <div className="sw-warp-flash" />}
+
+      {/* Perspective text crawl */}
       {phase === 'crawl' && (
         <div className="sw-perspective-container">
           <div className="sw-crawl-track">
@@ -105,25 +133,54 @@ export default function StarWarsCrawl({ onComplete }) {
                 key={i}
                 className={[
                   'sw-crawl-line',
-                  line.type === 'title' && 'sw-crawl-title',
+                  line.type === 'title'  && 'sw-crawl-title',
                   line.type === 'spacer' && 'sw-crawl-spacer',
                 ].filter(Boolean).join(' ')}
               >
                 {line.text || '\u00A0'}
               </p>
             ))}
-            <div style={{ height: '80vh' }} />
+            <div style={{ height: '60vh' }} />
           </div>
         </div>
       )}
 
-      {/* Skip hint — always visible */}
+      {/* Skip hint */}
       <div className="sw-skip-hint">CLICK OR PRESS ANY KEY TO SKIP</div>
     </div>
   );
 }
 
-/* ── Cinematic Star Field — depth layers with parallax drift ── */
+/* ── SVG TIE Fighter that flies across the screen ── */
+function TieFighter() {
+  return (
+    <div className="sw-tie-wrapper" aria-hidden="true">
+      <svg className="sw-tie-svg" viewBox="0 0 90 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Left wing panel */}
+        <polygon points="0,5 28,20 28,40 0,55" fill="#555" stroke="#888" strokeWidth="1" />
+        <line x1="0" y1="30" x2="28" y2="30" stroke="#aaa" strokeWidth="0.8" />
+        <line x1="14" y1="5" x2="14" y2="55" stroke="#888" strokeWidth="0.6" />
+        {/* Right wing panel */}
+        <polygon points="90,5 62,20 62,40 90,55" fill="#555" stroke="#888" strokeWidth="1" />
+        <line x1="90" y1="30" x2="62" y2="30" stroke="#aaa" strokeWidth="0.8" />
+        <line x1="76" y1="5" x2="76" y2="55" stroke="#888" strokeWidth="0.6" />
+        {/* Cockpit struts */}
+        <rect x="26" y="27" width="38" height="6" rx="1" fill="#444" stroke="#666" strokeWidth="0.8" />
+        {/* Cockpit ball */}
+        <circle cx="45" cy="30" r="10" fill="#333" stroke="#777" strokeWidth="1.2" />
+        <circle cx="45" cy="30" r="6"  fill="#222" stroke="#555" strokeWidth="0.8" />
+        <circle cx="42" cy="28" r="2.5" fill="#1a1a1a" />
+        <circle cx="48" cy="28" r="2.5" fill="#1a1a1a" />
+        {/* Engine glow */}
+        <circle cx="45" cy="30" r="3" fill="rgba(255,100,0,0.6)" />
+      </svg>
+      {/* Engine trail */}
+      <div className="sw-tie-trail" />
+    </div>
+  );
+}
+
+/* ── Cinematic Star Field ── */
 function StarField() {
   const canvasRef = useRef(null);
 
@@ -133,57 +190,48 @@ function StarField() {
     const ctx = canvas.getContext('2d');
 
     const resize = () => {
-      canvas.width = window.innerWidth;
+      canvas.width  = window.innerWidth;
       canvas.height = window.innerHeight;
     };
     resize();
     window.addEventListener('resize', resize);
 
-    // Three depth layers: distant (small/dim), mid, close (large/bright)
     const makeStar = (layer) => {
-      const base = [
-        { r: [0.2, 0.8], a: [0.2, 0.45], drift: 0.04, twinkle: 0.008 },
-        { r: [0.5, 1.2], a: [0.35, 0.65], drift: 0.1,  twinkle: 0.015 },
-        { r: [1.0, 2.2], a: [0.5, 0.9],  drift: 0.22, twinkle: 0.025 },
+      const cfg = [
+        { r: [0.2, 0.8], a: [0.2, 0.45], vy: 0.04,  twinkle: 0.008 },
+        { r: [0.5, 1.2], a: [0.35, 0.65], vy: 0.1,   twinkle: 0.015 },
+        { r: [1.0, 2.2], a: [0.5, 0.9],  vy: 0.22,  twinkle: 0.025 },
       ][layer];
       return {
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: base.r[0] + Math.random() * (base.r[1] - base.r[0]),
-        alpha: base.a[0] + Math.random() * (base.a[1] - base.a[0]),
-        drift: base.drift,
-        vy: -(base.drift * (Math.random() * 0.5 + 0.5)), // slow upward drift
-        twinkleSpeed: base.twinkle + Math.random() * 0.01,
+        r: cfg.r[0] + Math.random() * (cfg.r[1] - cfg.r[0]),
+        alpha: cfg.a[0] + Math.random() * (cfg.a[1] - cfg.a[0]),
+        vy: -(cfg.vy * (0.5 + Math.random() * 0.5)),
+        twinkleSpeed: cfg.twinkle + Math.random() * 0.01,
         twinkleOffset: Math.random() * Math.PI * 2,
-        // Occasional blue/warm tint for realism
-        hue: Math.random() < 0.15 ? `rgba(180,210,255,` : Math.random() < 0.08 ? `rgba(255,220,180,` : `rgba(255,255,255,`,
+        hue: Math.random() < 0.12 ? 'rgba(180,210,255,' : Math.random() < 0.07 ? 'rgba(255,220,180,' : 'rgba(255,255,255,',
       };
     };
 
     const stars = [
       ...Array.from({ length: 300 }, () => makeStar(0)),
       ...Array.from({ length: 120 }, () => makeStar(1)),
-      ...Array.from({ length: 40 },  () => makeStar(2)),
+      ...Array.from({ length: 40  }, () => makeStar(2)),
     ];
 
     let frame = 0;
     let rafId;
 
     const draw = () => {
-      // Deep space gradient background
-      const gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 0,
-        canvas.width / 2, canvas.height / 2, canvas.width * 0.75
-      );
-      gradient.addColorStop(0, '#04040f');
-      gradient.addColorStop(1, '#000004');
-      ctx.fillStyle = gradient;
+      const g = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width * 0.8);
+      g.addColorStop(0, '#04040f');
+      g.addColorStop(1, '#000004');
+      ctx.fillStyle = g;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      stars.forEach((s) => {
+      stars.forEach(s => {
         const twinkle = 0.7 + Math.sin(frame * s.twinkleSpeed + s.twinkleOffset) * 0.3;
-
-        // Glow halo for brighter stars
         if (s.r > 1.2) {
           const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4);
           glow.addColorStop(0, `${s.hue}${(s.alpha * twinkle * 0.4).toFixed(3)})`);
@@ -193,18 +241,12 @@ function StarField() {
           ctx.fillStyle = glow;
           ctx.fill();
         }
-
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fillStyle = `${s.hue}${(s.alpha * twinkle).toFixed(3)})`;
         ctx.fill();
-
-        // Slow drift upward (cinematic parallax)
         s.y += s.vy;
-        if (s.y < -s.r * 2) {
-          s.y = canvas.height + s.r;
-          s.x = Math.random() * canvas.width;
-        }
+        if (s.y < -s.r * 2) { s.y = canvas.height + s.r; s.x = Math.random() * canvas.width; }
       });
 
       frame++;
@@ -212,11 +254,7 @@ function StarField() {
     };
 
     rafId = requestAnimationFrame(draw);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resize);
-    };
+    return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', resize); };
   }, []);
 
   return <canvas ref={canvasRef} className="sw-starfield-canvas" />;

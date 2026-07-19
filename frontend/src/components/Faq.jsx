@@ -71,13 +71,13 @@ export default function Faq() {
   return (
     <section id="faq" className="faq-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">SYSTEM LOGS</span>
           <h2 className="section-title">Frequently Asked Questions</h2>
           <div className="section-underline"></div>
         </div>
 
-        <div className="faq-terminal">
+        <div className="faq-terminal reveal reveal-d1">
           {/* Terminal Header */}
           <div className="faq-terminal-header">
             <div className="terminal-dots">

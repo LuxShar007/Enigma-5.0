@@ -13,7 +13,7 @@ export default function About() {
   return (
     <section id="about" className="about-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">THE BLUEPRINT</span>
           <h2 className="section-title">Decrypting Enigma 5.0</h2>
           <div className="section-underline"></div>
@@ -30,7 +30,7 @@ export default function About() {
             </p>
             
             <div className="stats-grid">
-              <div className="stat-card glass-card">
+              <div className="stat-card glass-card reveal reveal-d1">
                 <div className="stat-icon-wrapper cyan-bg">
                   <i className="fa-solid fa-hourglass-half"></i>
                 </div>
@@ -38,7 +38,7 @@ export default function About() {
                 <span className="stat-label">Hours of Hacking</span>
               </div>
               
-              <div className="stat-card glass-card">
+              <div className="stat-card glass-card reveal reveal-d2">
                 <div className="stat-icon-wrapper purple-bg">
                   <i className="fa-solid fa-users"></i>
                 </div>
@@ -46,7 +46,7 @@ export default function About() {
                 <span className="stat-label">Developers Per Team</span>
               </div>
 
-              <div className="stat-card glass-card">
+              <div className="stat-card glass-card reveal reveal-d3">
                 <div className="stat-icon-wrapper emerald-bg">
                   <i className="fa-solid fa-indian-rupee-sign"></i>
                 </div>

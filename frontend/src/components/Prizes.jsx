@@ -46,22 +46,24 @@ export default function Prizes() {
     }
   ];
 
+  const delayClasses = ['reveal-d1', 'reveal-d2', 'reveal-d3'];
+
   return (
     <section id="prizes" className="prizes-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">THE INCENTIVES</span>
           <h2 className="section-title">Rewards & Matrix Nodes</h2>
           <div className="section-underline"></div>
         </div>
 
-        <p className="section-description-centered">
+        <p className="section-description-centered reveal">
           Compete across specialized development tracks to secure technical accolades, winner cash pots, and exclusive developer tool subscriptions.
         </p>
 
         <div className="prizes-grid">
-          {prizesData.map((item) => (
-            <div key={item.rank} className="prize-card glass-card spotlight-card">
+          {prizesData.map((item, idx) => (
+            <div key={item.rank} className={`prize-card glass-card spotlight-card reveal ${delayClasses[idx] || ''}`}>
               <div className="shimmer-container">
                 <div className="shimmer-sweep"></div>
               </div>

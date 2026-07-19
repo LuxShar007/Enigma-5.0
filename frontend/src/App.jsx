@@ -11,6 +11,7 @@ import Tracks from './components/Tracks';
 import Prizes from './components/Prizes';
 import Timeline from './components/Timeline';
 import Faq from './components/Faq';
+import VenueBeacon from './components/VenueBeacon';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
 import RegisterModal from './components/RegisterModal';
@@ -23,368 +24,258 @@ gsap.registerPlugin(ScrollTrigger);
 
 export default function App() {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [showCrawl, setShowCrawl] = useState(true);
+  const [showCrawl, setShowCrawl] = useState(
+    () => !sessionStorage.getItem('enigma_crawl_seen')
+  );
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showFloatingCta, setShowFloatingCta] = useState(false);
   const hyperspaceRef = useRef(null);
-  
+
+  const handleCrawlComplete = () => {
+    sessionStorage.setItem('enigma_crawl_seen', '1');
+    setShowCrawl(false);
+  };
+
+  // Scroll progress bar + floating CTA
   useEffect(() => {
-    // Always start at the top of the page on mount / refresh
+    const onScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
+      setShowFloatingCta(scrollTop > window.innerHeight * 0.85);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Button click ripple
+  useEffect(() => {
+    const handleRipple = (e) => {
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'btn-ripple';
+      ripple.style.left = `${e.clientX - rect.left}px`;
+      ripple.style.top  = `${e.clientY - rect.top}px`;
+      btn.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+    };
+    const btns = document.querySelectorAll('.btn');
+    btns.forEach(b => b.addEventListener('click', handleRipple));
+    return () => btns.forEach(b => b.removeEventListener('click', handleRipple));
+  }, []);
+
+  /* ── Apple-style GSAP animations ──────────────────────────────────── */
+  useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
-    // Use GSAP Context for clean React StrictMode mounting and unmounting
     const ctx = gsap.context(() => {
-      
-      // Hero Content staggered entrance
-      const heroTl = gsap.timeline();
-      heroTl.from(".hero-tagline-container", { y: 30, opacity: 0, duration: 0.8, ease: "power3.out" })
-            .from(".hero-title", { y: 40, opacity: 0, duration: 1.0, ease: "power4.out" }, "-=0.5")
-            .from(".hero-description", { y: 25, opacity: 0, duration: 0.8, ease: "power3.out" }, "-=0.6")
-            .from(".hero-pills .pill", { y: 20, opacity: 0, stagger: 0.12, duration: 0.6, ease: "power3.out" }, "-=0.4")
-            .from(".hero-actions .btn", { y: 20, opacity: 0, stagger: 0.15, duration: 0.6, ease: "power3.out" }, "-=0.4")
-            .from(".scroll-indicator", { opacity: 0, duration: 0.6, ease: "power2.out" });
 
-      // Section header trigger reveals (Apple iPhone style smooth scroll-linked fades)
-      const sectionHeaders = document.querySelectorAll(".section-header");
-      sectionHeaders.forEach(sh => {
-        gsap.from(sh, {
-          scrollTrigger: {
-            trigger: sh,
-            start: "top 95%",
-            end: "top 65%",
-            scrub: 1.2
-          },
-          y: 40,
-          opacity: 0,
-          scale: 0.95
-        });
-      });
+      /* Hero entrance — fires immediately, no ScrollTrigger */
+      const heroTl = gsap.timeline({ delay: 0.15 });
+      heroTl
+        .from('.hero-tagline-container', { y: 30, opacity: 0, filter: 'blur(6px)', duration: 0.75, ease: 'expo.out' })
+        .from('.hero-title',             { y: 50, opacity: 0, filter: 'blur(8px)', duration: 0.9,  ease: 'expo.out' }, '-=0.5')
+        .from('.hero-description',       { y: 25, opacity: 0, filter: 'blur(4px)', duration: 0.75, ease: 'expo.out' }, '-=0.55')
+        .from('.hero-pills .pill',       { y: 20, opacity: 0, stagger: 0.1,  duration: 0.55, ease: 'expo.out' }, '-=0.45')
+        .from('.hero-actions .btn',      { y: 20, opacity: 0, stagger: 0.12, duration: 0.55, ease: 'expo.out' }, '-=0.4')
+        .from('.scroll-indicator',       { opacity: 0, y: 10, duration: 0.5, ease: 'power2.out' });
 
-      // Apple-style scroll-linked word-by-word highlight reveals
-      const textBlocks = document.querySelectorAll(".apple-scroll-text");
-      textBlocks.forEach((block) => {
-        const words = block.querySelectorAll(".apple-word");
+      /* Word-by-word text illumination — intentional scrub */
+      document.querySelectorAll('.apple-scroll-text').forEach(block => {
+        const words = block.querySelectorAll('.apple-word');
         gsap.to(words, {
-          scrollTrigger: {
-            trigger: block,
-            start: "top 82%",
-            end: "bottom 55%",
-            scrub: true
-          },
-          color: "#ffffff",
-          stagger: 0.08,
-          ease: "none"
+          scrollTrigger: { trigger: block, start: 'top 80%', end: 'bottom 50%', scrub: true },
+          color: '#ffffff', stagger: 0.06, ease: 'none',
         });
       });
 
-      // About section slide reveals (organic convergence with scrub lag)
-      gsap.from(".about-text-content", {
-        scrollTrigger: {
-          trigger: ".about-section",
-          start: "top 95%",
-          end: "top 55%",
-          scrub: 1.2
-        },
-        x: -120,
-        opacity: 0,
-        scale: 0.92
+      /* Section headers — handled by CSS reveal-blur + IntersectionObserver, no GSAP needed */
+
+      /* About — opposing slide-in */
+      gsap.from('.about-text-content', {
+        scrollTrigger: { trigger: '.about-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: -60, y: 20, opacity: 0, filter: 'blur(5px)', duration: 0.85, ease: 'expo.out',
+      });
+      gsap.from('.about-visual-column', {
+        scrollTrigger: { trigger: '.about-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: 60, y: 20, opacity: 0, filter: 'blur(5px)', duration: 0.85, ease: 'expo.out', delay: 0.1,
       });
 
-      gsap.from(".about-visual-column", {
-        scrollTrigger: {
-          trigger: ".about-section",
-          start: "top 95%",
-          end: "top 55%",
-          scrub: 1.2
-        },
-        x: 120,
-        opacity: 0,
-        scale: 0.92
+      /* Organizers — opposing slide-in */
+      gsap.from('.organizers-info-content', {
+        scrollTrigger: { trigger: '.organizers-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: -60, y: 20, opacity: 0, filter: 'blur(5px)', duration: 0.85, ease: 'expo.out',
+      });
+      gsap.from('.organizers-cards-container', {
+        scrollTrigger: { trigger: '.organizers-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: 60, y: 20, opacity: 0, filter: 'blur(5px)', duration: 0.85, ease: 'expo.out', delay: 0.12,
       });
 
-      // Organizers section reveals (organic convergence with scrub lag)
-      gsap.from(".organizers-info-content", {
-        scrollTrigger: {
-          trigger: ".organizers-section",
-          start: "top 95%",
-          end: "top 55%",
-          scrub: 1.2
-        },
-        x: -120,
-        opacity: 0,
-        scale: 0.92
+      /* Tracks — opposing slide */
+      gsap.from('#track-fintech', {
+        scrollTrigger: { trigger: '.tracks-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: -60, y: 30, opacity: 0, filter: 'blur(5px)', scale: 0.96, duration: 0.85, ease: 'expo.out',
+      });
+      gsap.from('#track-healthtech', {
+        scrollTrigger: { trigger: '.tracks-section', start: 'top 88%', toggleActions: 'play none none none' },
+        x: 60, y: 30, opacity: 0, filter: 'blur(5px)', scale: 0.96, duration: 0.85, ease: 'expo.out', delay: 0.1,
       });
 
-      gsap.from(".organizers-cards-container", {
-        scrollTrigger: {
-          trigger: ".organizers-section",
-          start: "top 95%",
-          end: "top 55%",
-          scrub: 1.2
-        },
-        x: 120,
-        opacity: 0,
-        scale: 0.92
-      });
+      /* Prizes — handled entirely by CSS reveal + IntersectionObserver (reveal-d1/d2/d3 stagger) */
 
-      // Tracks cards reveals (cards scale up and slide together)
-      gsap.from("#track-fintech", {
-        scrollTrigger: {
-          trigger: ".tracks-section",
-          start: "top 95%",
-          end: "top 60%",
-          scrub: 1.2
-        },
-        x: -140,
-        opacity: 0,
-        scale: 0.88
-      });
-
-      gsap.from("#track-healthtech", {
-        scrollTrigger: {
-          trigger: ".tracks-section",
-          start: "top 95%",
-          end: "top 60%",
-          scrub: 1.2
-        },
-        x: 140,
-        opacity: 0,
-        scale: 0.88
-      });
-
-      // Prizes section reveals
-      const prizeCards = document.querySelectorAll(".prize-card");
-      prizeCards.forEach((card, index) => {
-        gsap.from(card, {
-          scrollTrigger: {
-            trigger: ".prizes-section",
-            start: "top 95%",
-            end: "top 60%",
-            scrub: 1.2
-          },
-          y: 70,
-          opacity: 0,
-          scale: 0.9,
-          delay: index * 0.1
-        });
-      });
-
-      // ── Timeline Section ──────────────────────────────────────────────
-      // Progress bar fill (scrub so it feels physical)
-      gsap.fromTo("#timeline-progress-bar",
-        { height: "0%" },
+      /* Timeline progress bar — intentional scrub */
+      gsap.fromTo('#timeline-progress-bar',
+        { height: '0%' },
         {
-          height: "100%",
-          ease: "none",
-          scrollTrigger: {
-            trigger: ".timeline-container",
-            start: "top 70%",
-            end: "bottom 65%",
-            scrub: 0.8,
-          },
+          height: '100%', ease: 'none',
+          scrollTrigger: { trigger: '.timeline-container', start: 'top 70%', end: 'bottom 65%', scrub: 0.5 },
         }
       );
 
-      // Countdown widget drops in from above
-      gsap.from(".registry-countdown", {
-        scrollTrigger: {
-          trigger: ".timeline-section",
-          start: "top 88%",
-          end: "top 50%",
-          scrub: 1,
-        },
-        y: -60,
-        opacity: 0,
-        scale: 0.92,
+      /* Timeline countdown widget */
+      gsap.from('.registry-countdown', {
+        scrollTrigger: { trigger: '.timeline-section', start: 'top 88%', toggleActions: 'play none none none' },
+        y: -40, opacity: 0, filter: 'blur(5px)', scale: 0.96, duration: 0.85, ease: 'expo.out',
       });
 
-      // Timeline items: each card slides from its side with staggered start
-      const timelineItems = document.querySelectorAll(".timeline-item");
-      timelineItems.forEach((item, _idx) => {
-        const card = item.querySelector(".timeline-card");
-        const dot  = item.querySelector(".timeline-dot-outer");
-        const isLeft = item.classList.contains("left");
-
-        // Card slides in from left or right
-        gsap.from(card, {
-          scrollTrigger: {
-            trigger: item,
-            start: "top 90%",
-            end: "top 55%",
-            scrub: 1,
-          },
-          x: isLeft ? -120 : 120,
-          opacity: 0,
-          scale: 0.88,
-        });
-
-        // Dot pulses in independently
+      /* Timeline items — CSS reveal-left/reveal-right handles slide animation.
+         GSAP only manages the dot pop-in and the active class for highlighting. */
+      document.querySelectorAll('.timeline-item').forEach((item, idx) => {
+        const dot = item.querySelector('.timeline-dot-outer');
         if (dot) {
           gsap.from(dot, {
             scrollTrigger: {
-              trigger: item,
-              start: "top 88%",
-              end: "top 65%",
-              scrub: 1,
+              trigger: item, start: 'top 90%',
+              toggleActions: 'play none none none', invalidateOnRefresh: true,
             },
-            scale: 0,
-            opacity: 0,
+            scale: 0, opacity: 0, duration: 0.5, ease: 'back.out(1.7)', delay: idx * 0.04 + 0.1,
           });
         }
-
-        // Add active class when item centre crosses 75% viewport
         ScrollTrigger.create({
-          trigger: item,
-          start: "top 75%",
-          onEnter:     () => item.classList.add("active"),
-          onLeaveBack: () => item.classList.remove("active"),
+          trigger: item, start: 'top 75%',
+          onEnter:     () => item.classList.add('active'),
+          onLeaveBack: () => item.classList.remove('active'),
+          invalidateOnRefresh: true,
         });
       });
 
-      // ── FAQ ───────────────────────────────────────────────────────────
-      gsap.from(".faq-terminal", {
-        scrollTrigger: {
-          trigger: ".faq-section",
-          start: "top 88%",
-          end: "top 55%",
-          scrub: 1,
-        },
-        y: 90,
-        opacity: 0,
-        scale: 0.93,
-      });
+      /* FAQ terminal — handled by CSS reveal + IntersectionObserver */
 
-      // ── Contact Section ───────────────────────────────────────────────
-      // Left column slides in
-      gsap.from(".contact-details", {
+      /* Contact — details and form handled by CSS reveal-left/right.
+         Only cascade the individual contact items with GSAP for micro-stagger. */
+      gsap.from('.contact-item', {
         scrollTrigger: {
-          trigger: ".contact-section",
-          start: "top 88%",
-          end: "top 52%",
-          scrub: 1,
+          trigger: '.contact-info-list', start: 'top 92%',
+          toggleActions: 'play none none none', invalidateOnRefresh: true,
         },
-        x: -120,
-        opacity: 0,
-        scale: 0.92,
+        y: 18, opacity: 0, stagger: 0.1, duration: 0.5, ease: 'power3.out',
       });
+      // .social-links a is NOT in GSAP — CSS keyframe handles it so icons are always visible
 
-      // Right form slides in from opposite side
-      gsap.from(".contact-form-container", {
-        scrollTrigger: {
-          trigger: ".contact-section",
-          start: "top 88%",
-          end: "top 52%",
-          scrub: 1,
-        },
-        x: 120,
-        opacity: 0,
-        scale: 0.92,
-      });
-
-      // Social links stagger up one by one
-      gsap.from(".social-links a", {
-        scrollTrigger: {
-          trigger: ".social-links",
-          start: "top 92%",
-          end: "top 70%",
-          scrub: 0.8,
-        },
-        y: 30,
-        opacity: 0,
-        scale: 0.7,
-        stagger: 0.12,
-      });
-
-      // Contact info items cascade in
-      gsap.from(".contact-item", {
-        scrollTrigger: {
-          trigger: ".contact-info-list",
-          start: "top 90%",
-          end: "top 60%",
-          scrub: 0.8,
-        },
-        y: 25,
-        opacity: 0,
-        stagger: 0.15,
-      });
-      // Scramble text function
-      const scrambleText = (element, originalText, duration = 1000) => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%@#$*&+-=";
-        const startTime = Date.now();
-        
-        const update = () => {
-          const now = Date.now();
-          const progress = Math.min((now - startTime) / duration, 1);
-          
-          let scrambled = "";
-          for (let i = 0; i < originalText.length; i++) {
-            if (originalText[i] === " ") {
-              scrambled += " ";
-            } else if (i < progress * originalText.length) {
-              scrambled += originalText[i];
-            } else {
-              scrambled += chars[Math.floor(Math.random() * chars.length)];
-            }
-          }
-          
-          element.innerText = scrambled;
-          
-          if (progress < 1) {
-            requestAnimationFrame(update);
+      /* Section title scramble-decrypt — read text BEFORE GSAP/CSS hides elements */
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%@#$*&+-=';
+      const scramble = (el, original, dur = 900) => {
+        if (!original || original.trim() === '') return;
+        // Temporarily override gradient clip so scramble chars are visible
+        el.style.webkitTextFillColor = '#a8c8ff';
+        el.style.backgroundClip = 'unset';
+        el.style.webkitBackgroundClip = 'unset';
+        const t0 = Date.now();
+        const tick = () => {
+          const p = Math.min((Date.now() - t0) / dur, 1);
+          el.textContent = original.split('').map((ch, i) =>
+            ch === ' ' ? ' ' : i < p * original.length ? ch : chars[Math.floor(Math.random() * chars.length)]
+          ).join('');
+          if (p < 1) {
+            requestAnimationFrame(tick);
+          } else {
+            // Restore gradient styling after scramble completes
+            el.style.webkitTextFillColor = '';
+            el.style.backgroundClip = '';
+            el.style.webkitBackgroundClip = '';
           }
         };
-        
-        requestAnimationFrame(update);
+        requestAnimationFrame(tick);
       };
-
-      // Section title triggers (decrypt on scroll)
-      const sectionTitles = document.querySelectorAll(".section-title");
-      sectionTitles.forEach((header) => {
-        const originalText = header.innerText;
+      // Capture text BEFORE animations hide elements, store in data attribute
+      document.querySelectorAll('.section-title').forEach(h => {
+        const orig = h.textContent.trim();
+        h.dataset.origTitle = orig; // store for safe retrieval later
         ScrollTrigger.create({
-          trigger: header,
-          start: "top 92%",
-          onEnter: () => {
-            scrambleText(header, originalText, 1000);
-          },
-          once: true
+          trigger: h, start: 'top 95%',
+          onEnter: () => scramble(h, h.dataset.origTitle || orig),
+          once: true,
+          invalidateOnRefresh: true,
         });
       });
-
     });
 
-    // Spotlight Card cursor coordinates tracking
-    const cards = document.querySelectorAll(".spotlight-card");
+    /* Spotlight card mouse-tracking */
     const cleanupSpotlights = [];
-
-    cards.forEach((card) => {
-      const onMouseMove = (e) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        card.style.setProperty("--mouse-x", `${x}px`);
-        card.style.setProperty("--mouse-y", `${y}px`);
+    document.querySelectorAll('.spotlight-card').forEach(card => {
+      const fn = (e) => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', `${e.clientX - r.left}px`);
+        card.style.setProperty('--mouse-y', `${e.clientY - r.top}px`);
       };
-      card.addEventListener("mousemove", onMouseMove);
-      cleanupSpotlights.push(() => card.removeEventListener("mousemove", onMouseMove));
+      card.addEventListener('mousemove', fn);
+      cleanupSpotlights.push(() => card.removeEventListener('mousemove', fn));
     });
 
-    // Refresh ScrollTrigger to calculate correct layouts
     ScrollTrigger.refresh();
+    const t = setTimeout(() => ScrollTrigger.refresh(), 800);
 
-    // Secondary delayed refresh to account for dynamic component updates (canvas, layouts)
-    const refreshTimeout = setTimeout(() => {
-      ScrollTrigger.refresh();
-      console.log("GSAP ScrollTrigger refreshed successfully!");
-    }, 800);
-
-    // Revert all animations and clean up timeline instances on unmount
     return () => {
-      clearTimeout(refreshTimeout);
+      clearTimeout(t);
       ctx.revert();
       cleanupSpotlights.forEach(cb => cb());
     };
   }, []);
 
-  // Fire hyperspace warp then open modal
+  /* ── Global CSS reveal system (IntersectionObserver) ─────────────── */
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view');
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    // Observe ALL reveal-class elements including new ones added to later sections
+    document.querySelectorAll(
+      '.reveal, .reveal-left, .reveal-right, .reveal-blur, .section-description-centered'
+    ).forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  /* ── Re-run IntersectionObserver after CipherStrip mounts (pinned section alters layout) ── */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const io2 = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in-view');
+              io2.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+      );
+      // Only pick up elements that haven't animated yet
+      document.querySelectorAll(
+        '.reveal:not(.in-view), .reveal-left:not(.in-view), .reveal-right:not(.in-view), .reveal-blur:not(.in-view)'
+      ).forEach(el => io2.observe(el));
+    }, 1200); // Wait for CipherStrip pin to settle
+    return () => clearTimeout(t);
+  }, []);
+
+  /* ── Fire hyperspace warp then open modal ────────────────────────── */
   const triggerRegisterModal = () => {
     if (hyperspaceRef.current) {
       hyperspaceRef.current.trigger(() => setIsRegisterOpen(true));
@@ -395,14 +286,35 @@ export default function App() {
 
   return (
     <>
-      {/* Star Wars Opening Crawl — shown once on load */}
-      {showCrawl && <StarWarsCrawl onComplete={() => setShowCrawl(false)} />}
+      {/* Star Wars Opening Crawl — once per session */}
+      {showCrawl && <StarWarsCrawl onComplete={handleCrawlComplete} />}
 
-      {/* Hyperspace Warp Flash — fires before register modal */}
+      {/* Hyperspace flash — fires before register modal */}
       <HyperspaceFlash ref={hyperspaceRef} />
+
+      {/* Scroll progress bar */}
+      <div
+        className="scroll-progress-bar"
+        style={{ width: `${scrollProgress}%` }}
+        aria-hidden="true"
+      />
+
+      {/* Floating Register CTA — appears after hero scrolls away */}
+      <button
+        id="floating-register-cta"
+        className={`floating-cta${showFloatingCta ? ' floating-cta--visible' : ''}`}
+        onClick={triggerRegisterModal}
+        aria-label="Register for Enigma 5.0"
+      >
+        <i className="fa-solid fa-key"></i>
+        <span>Register Now</span>
+      </button>
 
       {/* Ocean Wave WebGL Background */}
       <OceanWaveBackground />
+
+      {/* Aurora gradient depth layer — zero animation cost */}
+      <div className="aurora-layer" aria-hidden="true" />
 
       {/* Cyber-Grid Backdrop */}
       <div className="cyber-grid"></div>
@@ -414,10 +326,10 @@ export default function App() {
         <div className="ambient-orb orb-emerald"></div>
       </div>
 
-      {/* Navigation Header */}
+      {/* Navigation */}
       <Navbar onRegisterClick={triggerRegisterModal} />
 
-      {/* Main Content Sections */}
+      {/* Main Content */}
       <main>
         <Hero onRegisterClick={triggerRegisterModal} />
         <About />
@@ -427,13 +339,14 @@ export default function App() {
         <Prizes />
         <Timeline />
         <Faq />
+        <VenueBeacon />
         <Contact />
       </main>
 
-      {/* Footer Branding */}
+      {/* Footer */}
       <Footer onRegisterClick={triggerRegisterModal} />
 
-      {/* Team Registration Modal Gateway */}
+      {/* Registration Modal */}
       <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
     </>
   );

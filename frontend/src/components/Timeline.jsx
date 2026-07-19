@@ -50,7 +50,7 @@ export default function Timeline() {
   return (
     <section id="timeline" className="timeline-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">THE SEQUENCE</span>
           <h2 className="section-title">Event Timeline</h2>
           <div className="section-underline"></div>
@@ -62,11 +62,15 @@ export default function Timeline() {
           </div>
 
           {timelineEvents.map((event, index) => (
-            <div key={index} className={`timeline-item ${event.side} scroll-reveal`}>
-              <div className="timeline-dot-outer">
+            <div key={index} className={`timeline-item ${event.side}`}>
+              <div className={`timeline-dot-outer reveal reveal-d${Math.min(index + 1, 6)}`}>
                 <div className="timeline-dot"></div>
               </div>
-              <div className={`timeline-card glass-card ${event.isActiveCard ? 'active-card' : ''}`}>
+              <div
+                className={`timeline-card glass-card ${event.isActiveCard ? 'active-card' : ''} ${
+                  event.side === 'left' ? 'reveal-left' : 'reveal-right'
+                } reveal-d${Math.min(index + 1, 6)}`}
+              >
                 <span className="timeline-date">
                   <i className={`fa-solid ${event.icon}`}></i> {event.date}
                 </span>

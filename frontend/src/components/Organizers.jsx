@@ -12,7 +12,7 @@ export default function Organizers() {
   return (
     <section id="organizers" className="organizers-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">THE HOST CHAPTER</span>
           <h2 className="section-title">SIES GST CSI Student Chapter</h2>
           <div className="section-underline"></div>
@@ -29,15 +29,15 @@ export default function Organizers() {
             </p>
 
             <div className="organizers-stats">
-              <div className="org-stat-item">
+              <div className="org-stat-item reveal reveal-d1">
                 <span className="org-stat-num">72+</span>
                 <span className="org-stat-desc">National Chapters</span>
               </div>
-              <div className="org-stat-item">
+              <div className="org-stat-item reveal reveal-d2">
                 <span className="org-stat-num">500+</span>
                 <span className="org-stat-desc">Student Branches</span>
               </div>
-              <div className="org-stat-item">
+              <div className="org-stat-item reveal reveal-d3">
                 <span className="org-stat-num">100K+</span>
                 <span className="org-stat-desc">IT Professionals</span>
               </div>

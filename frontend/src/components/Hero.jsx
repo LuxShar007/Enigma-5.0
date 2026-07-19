@@ -1,5 +1,6 @@
 import React from 'react';
 import Countdown from './Countdown';
+import csiLogo from '../assets/CSI (WHITE) LOGO.png';
 
 export default function Hero({ onRegisterClick }) {
   const handleScrollToTimeline = (e) => {
@@ -15,7 +16,8 @@ export default function Hero({ onRegisterClick }) {
       <div className="container hero-container">
         <div className="hero-tagline-container">
           <span className="hero-tagline-accent">
-            <i className="fa-solid fa-microchip"></i> SIES CSI PRESENTS
+            <img src={csiLogo} alt="CSI Logo" className="hero-csi-logo" />
+            SIES CSI PRESENTS
           </span>
         </div>
         

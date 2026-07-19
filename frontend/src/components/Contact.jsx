@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import csiLogo from '../assets/CSI (WHITE) LOGO.png';
 
 export default function Contact() {
+  const socialRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,6 +24,23 @@ export default function Contact() {
       [name]: value
     }));
   };
+
+  // Trigger CSS bounce animation on social icons when they enter viewport
+  useEffect(() => {
+    const el = socialRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('social-animated');
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -57,7 +75,7 @@ export default function Contact() {
   return (
     <section id="contact" className="contact-section">
       <div className="container">
-        <div className="section-header">
+        <div className="section-header reveal-blur">
           <span className="section-subtitle">THE UPLINK</span>
           <h2 className="section-title">Contact Organizing Team</h2>
           <div className="section-underline"></div>
@@ -65,7 +83,7 @@ export default function Contact() {
 
         <div className="contact-grid">
           {/* Left Details Panel */}
-          <div className="contact-details glass-card">
+          <div className="contact-details glass-card reveal-left">
             <h3 className="contact-card-title">Enigma Headquarters</h3>
             <p className="contact-card-desc">
               Got questions regarding registration guidelines, tracks, or developer workspace specifications? Get in touch with our team.
@@ -91,7 +109,9 @@ export default function Contact() {
                 <div className="contact-text">
                   <span className="contact-label">Location</span>
                   <span className="contact-value">
-                    SIES GST, Sector 5, Nerul, Navi Mumbai - 400706
+                    Sri Chandrasekarendra Saraswati Vidyapuram,
+                    Sector-V, Nerul, Navi Mumbai,
+                    Maharashtra — 400706
                   </span>
                 </div>
               </div>
@@ -110,14 +130,14 @@ export default function Contact() {
             </div>
 
             <div className="social-header">CONNECT WITH CSI</div>
-            <div className="social-links">
+            <div className="social-links" ref={socialRef}>
               <a href="https://www.instagram.com/csisiesgst/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                 <i className="fa-brands fa-instagram"></i>
               </a>
               <a href="https://www.linkedin.com/company/csi-siesgst/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
                 <i className="fa-brands fa-linkedin-in"></i>
               </a>
-              <a href="https://www.facebook.com/csisies/#" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <a href="https://www.facebook.com/csisies/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                 <i className="fa-brands fa-facebook"></i>
               </a>
               <a href="https://csi.siesgst.ac.in/" target="_blank" rel="noopener noreferrer" aria-label="CSI SIES GST Website" className="social-link-website">
@@ -127,7 +147,7 @@ export default function Contact() {
           </div>
 
           {/* Right Submit Form */}
-          <div className="contact-form-container glass-card">
+          <div className="contact-form-container glass-card reveal-right reveal-d1">
             <h3 className="contact-card-title">Send a Cipher Message</h3>
             
             <form id="contact-form" className="contact-form" onSubmit={handleSubmit}>
