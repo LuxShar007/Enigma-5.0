@@ -1,41 +1,41 @@
 import React, { useState, useEffect } from 'react';
 
 export default function Countdown() {
-  // Target date initialized to exactly 24 hours from the initial page load
+  // Target date set to 24 hours from initial load
   const [targetDate] = useState(() => Date.now() + 24 * 60 * 60 * 1000);
   
   const [timeLeft, setTimeLeft] = useState({
-    days: '00',
-    hours: '00',
-    minutes: '00',
-    seconds: '00',
-    isExpired: false
+    days: '00', hours: '00', minutes: '00', seconds: '00', isExpired: false
   });
 
+  // Simulated Live Registration Stats
+  const [registeredCount, setRegisteredCount] = useState(() => {
+    // Start with a high realistic number near capacity
+    const saved = localStorage.getItem('enigma_sim_registered');
+    return saved ? parseInt(saved, 10) : 1905;
+  });
+  
+  const [liveAlert, setLiveAlert] = useState(null); // { message: string, id: number }
+
+  // ── Countdown Timer Tick ──
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date().getTime();
       const difference = targetDate - now;
 
       if (isNaN(difference) || difference < 0) {
-        setTimeLeft({
-          days: '00',
-          hours: '00',
-          minutes: '00',
-          seconds: '00',
-          isExpired: true
-        });
+        setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00', isExpired: true });
         return;
       }
 
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const days    = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours   = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
       setTimeLeft({
-        days: days.toString().padStart(2, '0'),
-        hours: hours.toString().padStart(2, '0'),
+        days:    days.toString().padStart(2, '0'),
+        hours:   hours.toString().padStart(2, '0'),
         minutes: minutes.toString().padStart(2, '0'),
         seconds: seconds.toString().padStart(2, '0'),
         isExpired: false
@@ -44,9 +44,54 @@ export default function Countdown() {
 
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 1000);
-
     return () => clearInterval(interval);
   }, [targetDate]);
+
+  // ── Live Registration Simulation ──
+  // Increments registration count every 40-75s to show live activity
+  useEffect(() => {
+    let alertId = 0;
+    
+    const scheduleNext = () => {
+      const delay = Math.random() * (75000 - 40000) + 40000; // 40s to 75s
+      return setTimeout(() => {
+        setRegisteredCount(prev => {
+          if (prev >= 1997) return prev; // cap simulator below 2000 to keep slots open
+          
+          const increment = Math.random() < 0.35 ? 2 : 1;
+          const nextCount = prev + increment;
+          localStorage.setItem('enigma_sim_registered', nextCount.toString());
+
+          // Trigger live dashboard notification alert
+          const msgs = [
+            `NEW REGISTRATION: TEAM SLOT ALLOCATED (+${increment})`,
+            `INCOMING UPLINK: PROTOCOL NODE SECURED (+${increment})`,
+            `VAULT ACCESS GRANTED: REGISTRY DATABASE UPDATED (+${increment})`
+          ];
+          setLiveAlert({
+            id: alertId++,
+            message: msgs[Math.floor(Math.random() * msgs.length)],
+            count: nextCount
+          });
+
+          return nextCount;
+        });
+        
+        // Schedule the subsequent simulation tick
+        timerId = scheduleNext();
+      }, delay);
+    };
+
+    let timerId = scheduleNext();
+    return () => clearTimeout(timerId);
+  }, []);
+
+  // Auto-dismiss the live alert after 4.5 seconds
+  useEffect(() => {
+    if (!liveAlert) return;
+    const t = setTimeout(() => setLiveAlert(null), 4500);
+    return () => clearTimeout(t);
+  }, [liveAlert]);
 
   return (
     <div className="countdown-wrapper glass-card">
@@ -88,12 +133,25 @@ export default function Countdown() {
           <span className="capacity-label">
             <i className="fa-solid fa-network-wired text-cyan"></i> REGISTRY STATUS
           </span>
+          
+          {/* Live Alert Banner */}
+          {liveAlert && (
+            <span className="capacity-live-indicator">
+              <span className="live-dot"></span>
+              {liveAlert.message}
+            </span>
+          )}
+
           <span className="capacity-count text-glow-emerald">
-            1,095 / 2,000 REGISTERED
+            {registeredCount.toLocaleString()} / 2,000 REGISTERED
           </span>
         </div>
+        
         <div className="capacity-progress-container">
-          <div className="capacity-progress-fill"></div>
+          <div 
+            className="capacity-progress-fill" 
+            style={{ width: `${(registeredCount / 2000) * 100}%` }}
+          />
         </div>
       </div>
     </div>

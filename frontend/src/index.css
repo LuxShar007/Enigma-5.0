@@ -2917,11 +2917,11 @@ a.contact-value:hover {
 }
 
 .capacity-progress-fill {
-  width: 54.75%;
   height: 100%;
   background: linear-gradient(to right, var(--color-cyan), var(--color-purple));
   border-radius: 3px;
   animation: glowPulse 2s infinite ease-in-out;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes glowPulse {
@@ -4693,4 +4693,179 @@ html {
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   CYBER DOSSIER TERMINAL PANEL REDESIGN
+   ========================================================================== */
+.cyber-dossier-panel {
+  background: rgba(8, 12, 30, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 14px;
+  padding: 24px 28px;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 15px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dossier-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.dossier-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dossier-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: block;
+}
+.dot-r { background: #ff5f56; }
+.dot-y { background: #ffbd2e; }
+.dot-g { background: #27c93f; }
+
+.dossier-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(180, 200, 230, 0.45);
+  letter-spacing: 0.06em;
+  flex: 1;
+}
+
+.dossier-status-pill {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-cyan);
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.18);
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.35);
+}
+
+.dossier-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dossier-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dossier-section-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dossier-section-title i {
+  font-size: 0.75rem;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.dossier-p {
+  font-size: 0.88rem;
+  color: rgba(180, 200, 230, 0.62) !important;
+  line-height: 1.62;
+  margin: 0;
+}
+
+.dossier-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 16px;
+  margin-top: 6px;
+}
+
+@media (max-width: 480px) {
+  .dossier-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.meta-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.meta-key {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: rgba(180, 200, 230, 0.35);
+  letter-spacing: 0.04em;
+}
+
+.meta-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   LIVE DASHBOARD COUNTDOWN NOTIFICATION ALERT
+   ========================================================================== */
+.capacity-live-indicator {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-cyan);
+  background: rgba(0, 242, 254, 0.06);
+  border: 1px solid rgba(0, 242, 254, 0.18);
+  border-radius: 6px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: slideUpAlert 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards, 
+             pulseBorderAlert 1.5s infinite alternate ease-in-out;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-cyan);
+  box-shadow: 0 0 8px var(--color-cyan);
+  animation: pulseNeonDot 1.0s infinite alternate ease-in-out;
+}
+
+@keyframes slideUpAlert {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulseBorderAlert {
+  0% { border-color: rgba(0, 242, 254, 0.18); }
+  100% { border-color: rgba(0, 242, 254, 0.45); }
+}
+
 

@@ -1,14 +1,6 @@
 import React from 'react';
 
 export default function Organizers() {
-  const splitText = (text) => {
-    return text.split(' ').map((word, idx) => (
-      <span key={idx} className="apple-word">
-        {word}{' '}
-      </span>
-    ));
-  };
-
   return (
     <section id="organizers" className="organizers-section">
       <div className="container">
@@ -21,12 +13,57 @@ export default function Organizers() {
         <div className="organizers-grid">
           {/* Factual CSI Chapter Info Column */}
           <div className="organizers-info-content">
-            <p className="organizers-lead apple-scroll-text">
-              {splitText("The SIES GST Computer Society of India (CSI) Campus Chapter is a premier student community dedicated to bridging the gap between academic theory and active engineering practice.")}
-            </p>
-            <p className="organizers-body apple-scroll-text">
-              {splitText("Established as part of CSI's countrywide network (founded in 1965 as India's largest IT professional association), our chapter hosts flagship coding contests, workshops, seminars, and national technical project competitions. We aim to inspire students, propagate scientific knowledge, and nurture the technical leaders of tomorrow.")}
-            </p>
+            <div className="cyber-dossier-panel glass-card">
+              <div className="dossier-header">
+                <div className="dossier-dots">
+                  <span className="dot dot-r"></span>
+                  <span className="dot dot-y"></span>
+                  <span className="dot dot-g"></span>
+                </div>
+                <div className="dossier-title">// HOST_CHAPTER_METRICS.dossier</div>
+                <div className="dossier-status-pill">SYS_ONLINE</div>
+              </div>
+              
+              <div className="dossier-body">
+                <div className="dossier-section">
+                  <div className="dossier-section-title">
+                    <i className="fa-solid fa-graduation-cap text-cyan"></i> CORE CHAPTER OBJECTIVE
+                  </div>
+                  <p className="dossier-p">
+                    The SIES GST Computer Society of India (CSI) Campus Chapter is a premier student community dedicated to bridging the gap between academic theory and active engineering practice.
+                  </p>
+                </div>
+
+                <div className="dossier-section">
+                  <div className="dossier-section-title">
+                    <i className="fa-solid fa-server text-purple"></i> OPERATION SPECIFICATION
+                  </div>
+                  <p className="dossier-p">
+                    Established under CSI's countrywide network (founded in 1965 as India's largest IT association), our chapter hosts coding contests, workshops, seminars, and national technical project exhibitions to nurture the tech leaders of tomorrow.
+                  </p>
+                </div>
+
+                {/* Inline Host Chapter Metadata Grid */}
+                <div className="dossier-meta-grid">
+                  <div className="meta-item">
+                    <span className="meta-key">FOUNDED:</span>
+                    <span className="meta-val text-cyan">1965 (CSI NATIONAL)</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-key">CAMPUS:</span>
+                    <span className="meta-val text-purple">SIES GST NETWORK</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-key">UPLINK_ID:</span>
+                    <span className="meta-val text-emerald">SIES-CSI-NODE</span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-key">SECTORS:</span>
+                    <span className="meta-val">ACADEMIC & INDUSTRY</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="organizers-stats">
               <div className="org-stat-item reveal reveal-d1">
