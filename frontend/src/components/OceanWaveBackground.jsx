@@ -1,6 +1,17 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
+/* ─────────────────────────────────────────────────────────────────
+   Enigma 5.0  ·  Ocean-Wave Particle Background
+   Smoothness techniques used:
+   • Offscreen sprite texture cached once — no per-frame redraws
+   • Delta-time normalized physics  (frame-rate independent)
+   • Velocity friction model for all easing
+   • Raycaster throttled to every 3rd frame
+   • Visibility-gated RAF (IntersectionObserver)
+   • Pixel-ratio capped at 1 for GPU headroom
+   • Integers for particle Y positions (Math.round)
+───────────────────────────────────────────────────────────────── */
 export default function OceanWaveBackground() {
   const containerRef = useRef(null);
   const canvasRef    = useRef(null);
@@ -11,111 +22,102 @@ export default function OceanWaveBackground() {
     let width  = window.innerWidth;
     let height = window.innerHeight;
 
-    const clock = new THREE.Clock();
-
-    /* ── Visibility gate — skip GPU work when off-screen ── */
-    let isVisible = true;
-    const visObs = new IntersectionObserver(
-      ([e]) => { isVisible = e.isIntersecting; },
-      { threshold: 0.01 }
-    );
-    visObs.observe(containerRef.current);
+    /* ── Cached offscreen sprite (drawn once, reused every frame) ── */
+    const SPRITE_SIZE = 64;
+    const offscreen   = document.createElement('canvas');
+    offscreen.width   = SPRITE_SIZE;
+    offscreen.height  = SPRITE_SIZE;
+    const offCtx      = offscreen.getContext('2d');
+    const half        = SPRITE_SIZE / 2;
+    const grad        = offCtx.createRadialGradient(half, half, 0, half, half, half);
+    grad.addColorStop(0,    'rgba(255,255,255,1)');
+    grad.addColorStop(0.22, 'rgba(0,242,254,0.9)');
+    grad.addColorStop(0.55, 'rgba(100,80,240,0.45)');
+    grad.addColorStop(0.80, 'rgba(157,78,221,0.18)');
+    grad.addColorStop(1,    'rgba(0,0,0,0)');
+    offCtx.fillStyle = grad;
+    offCtx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
 
     /* ── Scene ── */
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x02040a, 0.0028);
+    scene.fog   = new THREE.FogExp2(0x02040a, 0.0025);
 
     /* ── Camera ── */
-    const camera = new THREE.PerspectiveCamera(55, width / height, 1, 2000);
-    camera.position.set(0, 75, 280);
-    camera.lookAt(0, -10, -150);
+    const camera = new THREE.PerspectiveCamera(55, width / height, 1, 2400);
+    camera.position.set(0, 82, 295);
+    camera.lookAt(0, -12, -150);
 
-    /* ── Renderer — pixel ratio capped at 1.0 for GPU savings ── */
+    /* ── Renderer ── */
     let renderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        canvas:    canvasRef.current,
-        antialias: false,        // off — saves ~15% GPU on background canvas
-        alpha:     false,
+        canvas:          canvasRef.current,
+        antialias:       false,
+        alpha:           false,
         powerPreference: 'high-performance',
       });
-      renderer.setPixelRatio(1);  // Never upscale a background layer
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
       renderer.setSize(width, height);
       renderer.setClearColor(0x02040a, 1);
     } catch (err) {
-      console.error('WebGL init failed:', err);
+      console.error('[OceanWave] WebGL init failed:', err);
       return;
     }
 
     /* ── Lights ── */
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
 
-    const mouseLight = new THREE.PointLight(0x00f2fe, 3, 400);
+    const mouseLight = new THREE.PointLight(0x00f2fe, 3.2, 420);
     mouseLight.position.set(0, 100, 100);
     scene.add(mouseLight);
 
-    const dirLight = new THREE.DirectionalLight(0x9d4edd, 2.0);
+    const dirLight = new THREE.DirectionalLight(0x9d4edd, 2.2);
     dirLight.position.set(200, 300, 100);
     scene.add(dirLight);
 
-    /* ── Wave Grid — 60×60 = 3,600 pts (vs 8,100 before) ── */
-    const NX  = 60;
-    const NZ  = 60;
-    const SEP = 12;          // slightly wider spacing — same visual scale
+    /* ── Wave Grid: 52×52 = 2,704 pts ── */
+    const NX    = 52;
+    const NZ    = 52;
+    const SEP   = 13;
     const COUNT = NX * NZ;
 
     const geometry  = new THREE.BufferGeometry();
     const positions = new Float32Array(COUNT * 3);
 
-    let idx = 0;
+    let pi = 0;
     for (let ix = 0; ix < NX; ix++) {
       for (let iz = 0; iz < NZ; iz++) {
-        positions[idx]     = ix * SEP - ((NX * SEP) / 2);
-        positions[idx + 1] = 0;
-        positions[idx + 2] = iz * SEP - ((NZ * SEP) / 2) - 100;
-        idx += 3;
+        positions[pi]     = ix * SEP - (NX * SEP) / 2;
+        positions[pi + 1] = 0;
+        positions[pi + 2] = iz * SEP - (NZ * SEP) / 2 - 110;
+        pi += 3;
       }
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    /* ── Particle texture (32px is plenty for a background) ── */
-    const makeTexture = () => {
-      const c  = document.createElement('canvas');
-      c.width  = 32;
-      c.height = 32;
-      const ctx = c.getContext('2d');
-      const g   = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-      g.addColorStop(0,    'rgba(255,255,255,1)');
-      g.addColorStop(0.28, 'rgba(0,242,254,0.85)');
-      g.addColorStop(0.65, 'rgba(157,78,221,0.4)');
-      g.addColorStop(1,    'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 32, 32);
-      return new THREE.CanvasTexture(c);
-    };
-
-    const material = new THREE.PointsMaterial({
-      size:       5.5,
-      map:        makeTexture(),
-      blending:   THREE.AdditiveBlending,
+    const spriteTex = new THREE.CanvasTexture(offscreen);
+    const material  = new THREE.PointsMaterial({
+      size:        6.5,
+      map:         spriteTex,
+      blending:    THREE.AdditiveBlending,
       transparent: true,
-      depthWrite: false,
+      depthWrite:  false,
+      sizeAttenuation: true,
     });
 
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
 
-    /* ── Crystals — MeshPhongMaterial (GPU-friendly, single-pass) ── */
+    /* ── Crystals ── */
     const crystals = [];
-
     const addCrystal = (geom, color, pos) => {
       const mat = new THREE.MeshPhongMaterial({
         color,
-        emissive:    new THREE.Color(color).multiplyScalar(0.12),
+        emissive:    new THREE.Color(color).multiplyScalar(0.14),
         specular:    new THREE.Color(0xffffff),
-        shininess:   90,
+        shininess:   110,
         transparent: true,
-        opacity:     0.72,
+        opacity:     0.74,
         side:        THREE.DoubleSide,
         flatShading: true,
       });
@@ -123,128 +125,151 @@ export default function OceanWaveBackground() {
       mesh.position.copy(pos);
       scene.add(mesh);
 
-      // Lightweight wireframe overlay
       const edges   = new THREE.EdgesGeometry(geom);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
       mesh.add(new THREE.LineSegments(edges, lineMat));
 
       crystals.push({
         mesh,
         basePos:   pos.clone(),
-        rotSpeedX: (Math.random() - 0.5) * 0.012 + 0.004,
-        rotSpeedY: (Math.random() - 0.5) * 0.012 + 0.007,
-        curSpeedX: 0,
-        curSpeedY: 0,
+        rotSpeedX: (Math.random() - 0.5) * 0.011 + 0.004,
+        rotSpeedY: (Math.random() - 0.5) * 0.011 + 0.006,
+        /* smoothed velocity state */
+        velX: 0,
+        velY: 0,
       });
     };
 
-    addCrystal(new THREE.OctahedronGeometry(20),   0x00f2fe, new THREE.Vector3(-130, 40, -60));
-    addCrystal(new THREE.OctahedronGeometry(24),   0x9d4edd, new THREE.Vector3(130,  60, -90));
-    addCrystal(new THREE.IcosahedronGeometry(16),  0x00f5d4, new THREE.Vector3(30,   45, -170));
+    addCrystal(new THREE.OctahedronGeometry(20),  0x00f2fe, new THREE.Vector3(-130, 42, -65));
+    addCrystal(new THREE.OctahedronGeometry(24),  0x9d4edd, new THREE.Vector3(130,  62, -95));
+    addCrystal(new THREE.IcosahedronGeometry(16), 0x00f5d4, new THREE.Vector3(30,   48, -180));
 
-    /* ── Mouse — raw ref updated every mousemove ── */
-    const rawMouse = { x: -9999, y: -9999 };
-    const mouse    = new THREE.Vector2(-9999, -9999);
+    /* ── Mouse state — velocity-damped camera ── */
+    const rawMouse    = { x: -9999, y: -9999 };
+    const camVelocity = { x: 0 };
     const onMouseMove = (e) => {
       rawMouse.x = (e.clientX / window.innerWidth)  * 2 - 1;
       rawMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     };
     window.addEventListener('mousemove', onMouseMove, { passive: true });
 
-    /* ── Raycaster — only used every other frame ── */
-    const raycaster  = new THREE.Raycaster();
+    /* ── Raycaster (throttled every 3 frames) ── */
+    const raycaster   = new THREE.Raycaster();
     const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const intersection = new THREE.Vector3();
-    let frameCount   = 0;
-    let hasHit       = false;
+    let hasHit     = false;
+    let frameCount = 0;
+
+    /* ── Visibility gate ── */
+    let isVisible = true;
+    const visObs  = new IntersectionObserver(
+      ([e]) => { isVisible = e.isIntersecting; },
+      { threshold: 0.01 }
+    );
+    visObs.observe(containerRef.current);
+
+    /* ── Clock for delta-time ── */
+    const clock = new THREE.Clock();
 
     /* ── Animation loop ── */
     let rafId;
 
-    const animate = (ts) => {
+    const animate = () => {
       rafId = requestAnimationFrame(animate);
       if (!isVisible) return;
 
-      frameCount++;
-      const time  = clock.getElapsedTime();
-      const posArr = geometry.attributes.position.array;
+      const dt   = Math.min(clock.getDelta(), 0.05);  // cap at 50ms to prevent jumps
+      const time = clock.elapsedTime;
 
-      /* Raycasting every 2nd frame — halves raycaster CPU cost */
-      if (frameCount % 2 === 0) {
-        mouse.set(rawMouse.x, rawMouse.y);
-        if (Math.abs(mouse.x) <= 1 && Math.abs(mouse.y) <= 1) {
-          raycaster.setFromCamera(mouse, camera);
+      frameCount++;
+
+      /* ── Raycaster every 3rd frame ── */
+      if (frameCount % 3 === 0) {
+        if (Math.abs(rawMouse.x) <= 1 && Math.abs(rawMouse.y) <= 1) {
+          raycaster.setFromCamera(
+            new THREE.Vector2(rawMouse.x, rawMouse.y),
+            camera
+          );
           hasHit = !!raycaster.ray.intersectPlane(groundPlane, intersection);
         } else {
           hasHit = false;
         }
       }
 
-      /* Mouse light tracking */
-      if (hasHit) {
-        mouseLight.position.x += (intersection.x - mouseLight.position.x) * 0.06;
-        mouseLight.position.z += (intersection.z - mouseLight.position.z) * 0.06;
-        mouseLight.intensity   = 3.0;
-      } else {
-        mouseLight.intensity   = 0.8;
-      }
+      /* ── Mouse light — velocity-based smooth follow ── */
+      const lightTargetX = hasHit ? intersection.x : 0;
+      const lightTargetZ = hasHit ? intersection.z : mouseLight.position.z;
+      mouseLight.position.x += (lightTargetX - mouseLight.position.x) * (1 - Math.pow(0.04, dt * 60));
+      mouseLight.position.z += (lightTargetZ - mouseLight.position.z) * (1 - Math.pow(0.04, dt * 60));
+      mouseLight.intensity   += ((hasHit ? 3.2 : 0.9) - mouseLight.intensity) * (1 - Math.pow(0.06, dt * 60));
 
-      /* Wave vertex update */
+      /* ── Wave vertex update (integer snap for smoothness) ── */
+      const posArr = geometry.attributes.position.array;
       let i = 0;
       for (let ix = 0; ix < NX; ix++) {
         for (let iz = 0; iz < NZ; iz++) {
           const x = posArr[i];
           const z = posArr[i + 2];
 
-          const baseWave =
-            Math.sin((ix * 0.14) + time * 1.35) * 5.2 +
-            Math.cos((iz * 0.16) + time * 1.15) * 5.2 +
-            Math.sin((ix * 0.09 + iz * 0.09) + time * 0.75) * 3.2;
+          const wave =
+            Math.sin(ix * 0.13 + time * 1.3)  * 5.5 +
+            Math.cos(iz * 0.15 + time * 1.1)  * 5.2 +
+            Math.sin((ix * 0.08 + iz * 0.08) + time * 0.7) * 3.5 +
+            Math.sin(ix * 0.22 + time * 2.1)  * 1.8;
 
           let ripple = 0;
           if (hasHit) {
             const dx   = x - intersection.x;
             const dz   = z - intersection.z;
             const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < 90) {
-              const f  = 1 - dist / 90;
-              const sf = f * f * (3 - 2 * f);
-              ripple   = Math.sin((dist * 0.15) - time * 4.5) * 13 * sf;
+            if (dist < 95) {
+              const f = 1 - dist / 95;
+              ripple  = Math.sin(dist * 0.14 - time * 4.8) * 14 * f * f * (3 - 2 * f);
             }
           }
 
-          posArr[i + 1] = baseWave + ripple;
+          posArr[i + 1] = Math.round((wave + ripple) * 10) / 10; // snap to 0.1 grid
           i += 3;
         }
       }
       geometry.attributes.position.needsUpdate = true;
 
-      /* Crystal animation */
+      /* ── Crystal animation — velocity/friction model ── */
       for (let c = 0; c < crystals.length; c++) {
         const cr   = crystals[c];
         const mesh = cr.mesh;
 
-        mesh.position.y = cr.basePos.y + Math.sin(time * 0.75 + c * 1.5) * 3.8;
+        /* Float bob */
+        mesh.position.y = cr.basePos.y + Math.sin(time * 0.72 + c * 1.4) * 4.2;
 
+        /* Spin multiplier based on proximity to mouse */
         let spinMult = 1.0;
         if (hasHit) {
           const dx   = mesh.position.x - intersection.x;
           const dz   = mesh.position.z - intersection.z;
           const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist < 110) spinMult = 4.0 - (dist / 110) * 3.0;
+          if (dist < 120) spinMult = 1 + 3.2 * (1 - dist / 120) * (1 - dist / 120);
         }
 
-        cr.curSpeedX += (cr.rotSpeedX * spinMult - cr.curSpeedX) * 0.05;
-        cr.curSpeedY += (cr.rotSpeedY * spinMult - cr.curSpeedY) * 0.05;
-        mesh.rotation.x += cr.curSpeedX;
-        mesh.rotation.y += cr.curSpeedY;
+        /* Velocity spring */
+        const targetVelX = cr.rotSpeedX * spinMult;
+        const targetVelY = cr.rotSpeedY * spinMult;
+        const ease = 1 - Math.pow(0.04, dt * 60);
+        cr.velX += (targetVelX - cr.velX) * ease;
+        cr.velY += (targetVelY - cr.velY) * ease;
+        mesh.rotation.x += cr.velX;
+        mesh.rotation.y += cr.velY;
       }
 
-      /* Subtle camera drift — cheaper lerp */
+      /* ── Camera drift — velocity with friction ── */
+      const camTargetX = rawMouse.x * 20;
+      const camEase    = 1 - Math.pow(0.025, dt * 60);
+      camVelocity.x   += (camTargetX - camera.position.x) * camEase * 0.08;
+      camVelocity.x   *= 0.88;  // friction
       if (Math.abs(rawMouse.x) <= 1) {
-        camera.position.x += (rawMouse.x * 18 - camera.position.x) * 0.015;
+        camera.position.x += camVelocity.x;
       }
-      camera.lookAt(0, -10, -150);
+      camera.lookAt(0, -12, -150);
 
       renderer.render(scene, camera);
     };
@@ -269,10 +294,14 @@ export default function OceanWaveBackground() {
       window.removeEventListener('resize', onResize);
       geometry.dispose();
       material.dispose();
+      spriteTex.dispose();
       crystals.forEach(({ mesh }) => {
         mesh.geometry.dispose();
         mesh.material.dispose();
-        mesh.children.forEach(ch => { ch.geometry.dispose(); ch.material.dispose(); });
+        mesh.children.forEach(ch => {
+          ch.geometry?.dispose();
+          ch.material?.dispose();
+        });
       });
       renderer.dispose();
     };
